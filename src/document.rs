@@ -3075,6 +3075,13 @@ impl PdfDocument {
         // Save graphics state
         state_stack.save();
 
+        // Ensure no pending path operations before processing XObject (Issue #8)
+        // Paths should be finalized before crossing into nested content,
+        // but we defensively end any pending path to isolate XObject processing
+        if extractor.has_current_path() {
+            extractor.end_path();
+        }
+
         // Apply XObject transformation to CTM
         let state = state_stack.current_mut();
         state.ctm = state.ctm.multiply(&matrix);
@@ -3195,6 +3202,12 @@ impl PdfDocument {
                 // Skip other operators
                 _ => {},
             }
+        }
+
+        // Ensure any pending path operations from the XObject are finalized (Issue #8)
+        // This prevents path state from leaking into the parent content stream
+        if extractor.has_current_path() {
+            extractor.end_path();
         }
 
         // Restore graphics state
