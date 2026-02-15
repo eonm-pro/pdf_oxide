@@ -139,6 +139,12 @@ impl EncryptionHandler {
             Algorithm::None => Ok(data.to_vec()),
             Algorithm::RC4_40 | Algorithm::Rc4_128 => Ok(super::rc4::rc4_crypt(&obj_key, data)),
             Algorithm::Aes128 | Algorithm::Aes256 => {
+                if obj_key.len() < 16 {
+                    return Err(Error::InvalidPdf(format!(
+                        "AES object key too short: {} bytes (need 16)",
+                        obj_key.len()
+                    )));
+                }
                 // AES: first 16 bytes are IV, rest is ciphertext
                 if data.len() < 16 {
                     return Err(Error::InvalidPdf("AES encrypted data too short".to_string()));
@@ -230,6 +236,20 @@ mod tests {
 
         // Key should be (16 + 5).min(16) = 16 bytes
         assert_eq!(obj_key.len(), 16);
+    }
+
+    #[test]
+    fn test_decrypt_stream_aes_with_short_key() {
+        // RC4-40 produces a 10-byte key; AES needs 16. Should error, not panic.
+        let mut handler = create_test_handler(Algorithm::Aes128);
+        // Simulate a short key (10 bytes, as from RC4-40)
+        handler.encryption_key = Some(vec![0x01; 5]);
+        // Provide valid-length data (16-byte IV + some ciphertext)
+        let data = vec![0u8; 32];
+        let result = handler.decrypt_stream(&data, 1, 0);
+        assert!(result.is_err());
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(err_msg.contains("AES object key too short"), "got: {}", err_msg);
     }
 
     fn create_test_handler(algorithm: Algorithm) -> EncryptionHandler {

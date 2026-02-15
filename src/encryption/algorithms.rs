@@ -170,6 +170,9 @@ pub fn authenticate_user_password(
     };
 
     // Compare first 16 bytes (constant-time comparison)
+    if user_key.len() < 16 || expected_user_key.len() < 16 {
+        return None;
+    }
     let matches = constant_time_compare(&user_key[..16], &expected_user_key[..16]);
 
     if matches {
@@ -650,5 +653,23 @@ mod tests {
 
         assert!(auth_result.is_some());
         assert_eq!(auth_result.unwrap(), encryption_key);
+    }
+
+    #[test]
+    fn test_authenticate_user_password_short_user_key() {
+        // /U value shorter than 16 bytes should return None, not panic
+        let short_user_key = vec![0u8; 10];
+        let owner_key = vec![0u8; 32];
+        let result = authenticate_user_password(
+            b"",
+            &short_user_key,
+            &owner_key,
+            -1,
+            b"file_id",
+            2,
+            5,
+            true,
+        );
+        assert!(result.is_none());
     }
 }
