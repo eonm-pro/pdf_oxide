@@ -1606,6 +1606,26 @@ impl PdfDocument {
         current_index: &mut usize,
         inherited: &mut HashMap<String, Object>,
     ) -> Result<Object> {
+        self.get_page_from_tree_inner(
+            node_ref,
+            target_index,
+            current_index,
+            inherited,
+            &mut HashSet::new(),
+        )
+    }
+
+    fn get_page_from_tree_inner(
+        &mut self,
+        node_ref: ObjectRef,
+        target_index: usize,
+        current_index: &mut usize,
+        inherited: &mut HashMap<String, Object>,
+        visited: &mut HashSet<ObjectRef>,
+    ) -> Result<Object> {
+        if !visited.insert(node_ref) {
+            return Err(Error::CircularReference(node_ref));
+        }
         let node = self.load_object(node_ref)?;
         let node_dict = node.as_dict().ok_or_else(|| Error::InvalidObjectType {
             expected: "Dictionary".to_string(),
@@ -1688,7 +1708,13 @@ impl PdfDocument {
                     })?;
 
                     // Pass inherited attributes to children
-                    match self.get_page_from_tree(kid_ref, target_index, current_index, inherited) {
+                    match self.get_page_from_tree_inner(
+                        kid_ref,
+                        target_index,
+                        current_index,
+                        inherited,
+                        visited,
+                    ) {
                         Ok(page) => return Ok(page),
                         Err(Error::CircularReference(obj_ref)) => {
                             log::warn!(
@@ -1727,7 +1753,7 @@ impl PdfDocument {
             .as_reference()
             .ok_or_else(|| Error::InvalidPdf("/Pages is not a reference".to_string()))?;
 
-        self.get_page_ref_recursive(pages_ref, page_index, &mut 0)
+        self.get_page_ref_recursive(pages_ref, page_index, &mut 0, &mut HashSet::new())
     }
 
     /// Recursively find page reference in the page tree.
@@ -1736,7 +1762,11 @@ impl PdfDocument {
         node_ref: ObjectRef,
         target_index: usize,
         current_index: &mut usize,
+        visited: &mut HashSet<ObjectRef>,
     ) -> Result<ObjectRef> {
+        if !visited.insert(node_ref) {
+            return Err(Error::CircularReference(node_ref));
+        }
         let node = self.load_object(node_ref)?;
         let node_dict = node.as_dict().ok_or_else(|| Error::InvalidObjectType {
             expected: "Dictionary".to_string(),
@@ -1765,7 +1795,12 @@ impl PdfDocument {
 
                 for kid_obj in kids {
                     if let Some(kid_ref) = kid_obj.as_reference() {
-                        match self.get_page_ref_recursive(kid_ref, target_index, current_index) {
+                        match self.get_page_ref_recursive(
+                            kid_ref,
+                            target_index,
+                            current_index,
+                            visited,
+                        ) {
                             Ok(page_ref) => return Ok(page_ref),
                             Err(_) => continue,
                         }
