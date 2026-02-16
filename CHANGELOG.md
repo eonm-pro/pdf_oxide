@@ -25,12 +25,13 @@ All notable changes to PDFOxide are documented here.
 |--------|--------|--------|--------|
 | **Pass rate** | 99.8% | 99.8% | 3,823 of 3,830 valid PDFs |
 | **Slow (>5s)** | 2 | **0** | Eliminated |
-| **Mean** | 23.3ms | **2.3ms** | **-90%** |
-| **p50** | 0.6ms | 0.7ms | — |
+| **Mean** | 23.3ms | **2.1ms** | **-91%** |
+| **p50** | 0.6ms | 0.6ms | — |
+| **p90** | 3.0ms | **2.6ms** | -13% |
 | **p95** | 5.1ms | **4.7ms** | -8% |
-| **p99** | 33.2ms | **20.3ms** | **-39%** |
+| **p99** | 33.2ms | **18.0ms** | **-46%** |
 | **Max** | 68,722ms | **625ms** | **-99%** |
-| **Sum (all PDFs)** | 89.1s | **8.8s** | **-90%** |
+| **Sum (all PDFs)** | 89.1s | **8.0s** | **-91%** |
 
 The 7 non-passing files are intentionally broken test fixtures (missing PDF header, fuzz-corrupted catalogs, invalid xref streams).
 

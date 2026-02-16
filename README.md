@@ -1,6 +1,6 @@
 # PDF Oxide — Fast Python & Rust PDF Library
 
-The fastest Python PDF library for text extraction, image extraction, and markdown conversion. Built on a Rust core for reliability and speed — mean 2.3ms per page, 99.8% pass rate on 3,830 real-world PDFs.
+The fastest Python PDF library for text extraction, image extraction, and markdown conversion. Built on a Rust core for reliability and speed — mean 2.1ms per page, 99.8% pass rate on 3,830 real-world PDFs.
 
 [![Crates.io](https://img.shields.io/crates/v/pdf_oxide.svg)](https://crates.io/crates/pdf_oxide)
 [![PyPI](https://img.shields.io/pypi/v/pdf_oxide.svg)](https://pypi.org/project/pdf_oxide/)
@@ -42,7 +42,7 @@ pdf_oxide = "0.3"
 
 ## Why pdf_oxide?
 
-- **Fast** — Rust core, mean 2.3ms per PDF page, p99 = 20ms, 98.3% under 10ms
+- **Fast** — Rust core, mean 2.1ms per PDF page, p99 = 18ms, 98.4% under 10ms
 - **Reliable** — 100% pass rate on 3,830 test PDFs, zero panics, zero slow (>5s) PDFs
 - **Complete** — Text extraction, image extraction, PDF creation, and editing in one library
 - **Dual-language** — First-class Rust API and Python bindings via PyO3
@@ -120,12 +120,12 @@ Verified against 3,830 PDFs from three independent test suites:
 
 | Metric | v0.3.5 | v0.3.6 |
 |--------|--------|--------|
-| **Mean latency** | 23.3ms | **2.3ms** (-90%) |
-| **p50 latency** | 0.6ms | 0.7ms |
-| **p90 latency** | 3.0ms | 3.0ms |
-| **p99 latency** | 33ms | **20ms** (-39%) |
+| **Mean latency** | 23.3ms | **2.1ms** (-91%) |
+| **p50 latency** | 0.6ms | 0.6ms |
+| **p90 latency** | 3.0ms | **2.6ms** (-13%) |
+| **p99 latency** | 33ms | **18ms** (-46%) |
 | **Max latency** | 68,722ms | **625ms** (-99%) |
-| **Under 10ms** | 97.4% | **98.3%** |
+| **Under 10ms** | 97.4% | **98.4%** |
 | **Slow (>5s)** | 2 | **0** |
 | **Timeouts** | 0 | 0 |
 | **Panics** | 0 | 0 |
@@ -204,4 +204,4 @@ cargo build && cargo test && cargo fmt && cargo clippy -- -D warnings
 
 ---
 
-**Rust** + **Python** | MIT/Apache-2.0 | 99.8% pass rate on 3,830 PDFs | mean 2.3ms | v0.3.6
+**Rust** + **Python** | MIT/Apache-2.0 | 99.8% pass rate on 3,830 PDFs | mean 2.1ms | v0.3.6
