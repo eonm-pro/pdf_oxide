@@ -81,6 +81,9 @@ pub struct PdfDocument {
     /// Page object cache keyed by page index to avoid re-traversing the page tree.
     /// The page tree structure is static (§7.7.3.2), so pages can be safely cached.
     page_cache: HashMap<usize, Object>,
+    /// Whether the bulk page tree walk has been attempted (successful or not).
+    /// Prevents re-walking the tree on every cache miss for malformed PDFs.
+    page_cache_populated: bool,
     /// Cached object offsets from full file scan (built on first xref miss).
     /// Maps object number to byte offset in file.
     scanned_object_offsets: Option<HashMap<u32, u64>>,
@@ -189,6 +192,7 @@ impl PdfDocument {
             font_cache: HashMap::new(),
             structure_tree_cache: None,
             page_cache: HashMap::new(),
+            page_cache_populated: false,
             scanned_object_offsets: None,
         };
 
@@ -1659,8 +1663,16 @@ impl PdfDocument {
         // On first cache miss, walk the page tree once and populate ALL pages.
         // This turns O(n) per-page lookups into a single O(n) walk, avoiding
         // O(n²) total cost when iterating sequentially through many pages.
-        if let Err(e) = self.populate_page_cache() {
-            log::warn!("Bulk page tree walk failed ({}), falling back to per-page traversal", e);
+        // The flag ensures we only attempt this once, even if it fails or
+        // produces an incomplete cache (e.g., malformed page trees).
+        if !self.page_cache_populated {
+            self.page_cache_populated = true;
+            if let Err(e) = self.populate_page_cache() {
+                log::warn!(
+                    "Bulk page tree walk failed ({}), falling back to per-page traversal",
+                    e
+                );
+            }
         }
 
         // Check cache again after bulk population
@@ -1769,11 +1781,12 @@ impl PdfDocument {
                 // Save inherited state so siblings don't see each other's overrides
                 let saved = inherited.clone();
 
+                // Nearest ancestor's attributes override more distant ones (PDF spec §7.7.3.4).
+                // insert() is correct here because we snapshot/restore `inherited` around
+                // the recursion, so this node's values apply only to its subtree.
                 for attr_name in &["Resources", "MediaBox", "CropBox", "Rotate"] {
                     if let Some(attr_value) = node_dict.get(*attr_name) {
-                        inherited
-                            .entry(attr_name.to_string())
-                            .or_insert_with(|| attr_value.clone());
+                        inherited.insert(attr_name.to_string(), attr_value.clone());
                     }
                 }
 
