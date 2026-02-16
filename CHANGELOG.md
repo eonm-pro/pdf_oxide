@@ -4,6 +4,22 @@ All notable changes to PDFOxide are documented here.
 
 ## [0.3.5] - 2026-02-15
 
+### Performance
+
+- **Font caching across pages** — Document-level font cache keyed by `ObjectRef` avoids re-parsing shared fonts on every page. For a 1000-page document sharing 20 fonts, this reduces font parsing from 40,000 operations to 20
+- **Page object caching** — `get_page()` caches resolved page objects in a `HashMap<usize, Object>`, eliminating repeated page tree traversal for multi-page extraction
+- **Structure tree caching** — Structure tree result cached after first access, avoiding redundant parsing on every `extract_text()` call (major impact on tagged PDFs like PDF32000_2008.pdf)
+- **BT operator early-out** — `extract_spans()`, `extract_spans_with_config()`, and `extract_chars()` skip the full text extraction pipeline for image-only pages that contain no `BT` (Begin Text) operators
+- **Larger I/O buffer for big files** — `BufReader` capacity increased from 8 KB to 256 KB for files >100 MB, reducing syscall overhead on 1.5 GB newspaper archives
+- **Xref reconstruction threshold removed** — Eliminated the `xref.len() < 5` heuristic that triggered full-file reconstruction on valid portfolio PDFs with few objects (5-13s → <100ms)
+
+### Verified — 3,830-PDF Corpus
+
+- **100% pass rate** on 3,830 PDFs across three independent test suites: veraPDF (2,907), Mozilla pdf.js (897), SafeDocs (26)
+- **Zero timeouts, zero panics** — every PDF completes within 120 seconds
+- **p50 = 0.6ms, p90 = 3.0ms, p99 = 33ms** — 97.6% of PDFs complete in under 10ms
+- Added `verify_corpus` example binary for reproducible batch verification with CSV output, timeout handling, and per-corpus breakdown
+
 ### Added - Encryption
 
 - **Owner password authentication** (Algorithm 7 for R≤4, Algorithm 12 for R≥5)
@@ -29,15 +45,29 @@ All notable changes to PDFOxide are documented here.
 
 ### Added - Rendering
 
-- **Clipping path operators** (`W`/`W*`) — Implemented using `tiny_skia::Mask` with nonzero winding and even-odd fill rules; clip mask applied to all subsequent fill and stroke operations
+- **Spec-correct clipping** (PDF §8.5.4) — Clip state scoped to `q`/`Q` save/restore via clip stack; new clips intersect with existing clip region; `W`/`W*` no longer consume the current path (deferred to next paint operator); clip mask applied to all painting operations including text and images
 - **Glyph advance width calculation** — Text position advances per PDF spec §9.4.4: `tx = (w0/1000 × Tfs + Tc + Tw) × Th` with 600-unit default glyph width
 - **Form XObject rendering** — Parses `/Matrix` transform, uses form's `/Resources` (or inherits from parent), and recursively executes form content stream operators
+
+### Fixed - Error Recovery (28+ real-world PDFs)
+
+- **Missing objects resolve to Null** — Per PDF spec §7.3.10, unresolvable indirect references now return `Null` instead of errors, fixing 16 files across veraPDF/pdf.js corpora
+- **Lenient header version parsing** — Fixed fast-path bug where valid headers with unusual version strings were rejected
+- **Non-standard encryption algorithm matching** — V=1,R=3 combinations now handled leniently instead of rejected
+- **Non-dictionary Resources** — Pages with invalid `/Resources` entries (e.g., Null, Integer) treated as empty resources instead of erroring
+- **Null nodes in page tree** — Null or non-dictionary child nodes in page tree gracefully skipped during traversal
+- **Corrupt content streams** — Malformed content streams return empty content instead of propagating parse errors
+- **Enhanced page tree scanning** — `/Resources`+`/Parent` heuristic and `/Kids` direct resolution added as fallback passes for damaged page trees
+
+### Fixed - DoS Protection
+
+- **Bogus /Count bounds checking** — Page count validated against PDF spec Annex C.2 limit (8,388,607) and total object count; unreasonable values fall back to tree scanning
 
 ### Fixed - Image Extraction
 - **Content stream image extraction** — `extract_images()` now processes page content streams to find `Do` operator calls, extracting images referenced via XObjects that were previously missed
 - **Nested Form XObject images** — Recursive extraction with cycle detection handles images inside Form XObjects
 - **Inline images** — `BI`...`ID`...`EI` sequences parsed with abbreviation expansion per PDF spec
-- **CTM transformations** — Image bounding boxes correctly transformed using the current transformation matrix
+- **CTM transformations** — Image bounding boxes correctly transformed using full 4-corner affine transform (handles rotation, shear, and negative scaling)
 - **ColorSpace indirect references** — Resolved indirect references (e.g., `7 0 R`) in image color space entries before extraction
 
 ### Fixed - Parser Robustness
