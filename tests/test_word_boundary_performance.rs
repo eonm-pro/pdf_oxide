@@ -438,6 +438,7 @@ fn test_baseline_boundary_detection_edge_cases() {
 /// We can't easily measure character collection separately without modifying the extractor,
 /// so we measure the full pipeline and compare modes.
 #[test]
+#[ignore] // Timing-sensitive; flaky on shared CI runners
 fn test_baseline_full_pipeline_with_simple_pdf() {
     println!("\n=== Baseline: Full Pipeline Performance ===");
 
