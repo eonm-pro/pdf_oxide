@@ -2631,9 +2631,10 @@ impl PdfDocument {
                 Err(_) => continue,
             };
 
-            // Check /F flags — skip hidden annotations (bit 2 = Hidden)
+            // Check /F flags — skip invisible/hidden annotations
+            // Bit 1 (0x1) = Invisible, Bit 2 (0x2) = Hidden, Bit 6 (0x20) = NoView
             if let Some(Object::Integer(f)) = dict.get("F") {
-                if *f & 0x2 != 0 {
+                if *f & (0x1 | 0x2 | 0x20) != 0 {
                     continue;
                 }
             }
