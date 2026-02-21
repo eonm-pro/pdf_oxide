@@ -186,6 +186,33 @@ pub fn parse_content_stream_text_only(data: &[u8]) -> Result<Vec<Operator>> {
                     },
                     Err(_) => input = after_op,
                 },
+                ScanResult::DeferredThenText {
+                    deferred_start,
+                    trigger_start,
+                } => {
+                    // Re-parse the deferred q/cm/Q region to emit CTM-affecting ops.
+                    // The trigger (BT/BI/Do/etc.) is NOT included — the next iteration
+                    // of the outer loop re-enters scan_graphics_region which returns
+                    // the trigger via FoundBT / InlineImage / NeedFullParse.
+                    let mut remaining = deferred_start;
+                    while remaining.len() > trigger_start.len() {
+                        match parse_operator_with_operands(remaining) {
+                            Ok((rest2, op)) => {
+                                operators.push(op);
+                                remaining = rest2;
+                            },
+                            Err(_) => {
+                                if remaining.len() > 1 {
+                                    remaining = &remaining[1..];
+                                } else {
+                                    break;
+                                }
+                            },
+                        }
+                    }
+                    input = trigger_start;
+                    consecutive_errors = 0;
+                },
                 ScanResult::TooManyErrors { remaining } => {
                     log::warn!(
                         "Content stream had {} consecutive parse errors, bailing out ({} bytes remaining)",
@@ -1026,6 +1053,16 @@ enum ScanResult<'a> {
         operand_start: &'a [u8],
         after_op: &'a [u8],
     },
+    /// Found a non-skippable operator (BT/BI/Do/etc.) inside a deferred q/cm
+    /// block. `deferred_start` points to the first deferred `q` so the caller
+    /// can full-parse the q/cm/Q sequence to preserve CTM. `trigger_start`
+    /// points to the operand_start of the triggering operator so the caller
+    /// resumes scanning there (the next scan_graphics_region call will
+    /// immediately return the trigger via FoundBT / InlineImage / NeedFullParse).
+    DeferredThenText {
+        deferred_start: &'a [u8],
+        trigger_start: &'a [u8],
+    },
     /// Too many consecutive errors; remaining data is likely junk.
     TooManyErrors { remaining: &'a [u8] },
 }
@@ -1041,6 +1078,8 @@ fn is_skippable_graphics_op_bytes(op: &[u8]) -> bool {
         | b"B" | b"B*" | b"b" | b"b*" | b"n"                    // path painting
         | b"W" | b"W*"                                           // clipping
         | b"w" | b"J" | b"j" | b"M" | b"d" | b"i" | b"ri" | b"sh" // non-text graphics state
+        | b"rg" | b"RG" | b"g" | b"G" | b"k" | b"K"            // color (rgb/gray/cmyk)
+        | b"cs" | b"CS" | b"sc" | b"SC" | b"scn" | b"SCN"      // color space/components
     )
 }
 
@@ -1247,6 +1286,8 @@ fn skip_dict_raw(data: &[u8], i: usize) -> Option<usize> {
 fn scan_graphics_region<'a>(data: &'a [u8], consecutive_errors: &mut usize) -> ScanResult<'a> {
     let mut i: usize = 0;
     let mut operand_start: usize = 0;
+    let mut deferred_depth: u32 = 0;
+    let mut deferred_start: usize = 0;
 
     loop {
         i = skip_whitespace_raw(data, i);
@@ -1348,7 +1389,38 @@ fn scan_graphics_region<'a>(data: &'a [u8], consecutive_errors: &mut usize) -> S
 
                 *consecutive_errors = 0;
 
-                if op == b"BT" {
+                if op == b"q" {
+                    if deferred_depth == 0 {
+                        deferred_start = operand_start;
+                    }
+                    deferred_depth += 1;
+                    operand_start = i;
+                    continue;
+                } else if op == b"Q" {
+                    if deferred_depth > 0 {
+                        deferred_depth -= 1;
+                        operand_start = i;
+                        continue;
+                    }
+                    // Unmatched Q outside deferred — emit normally
+                    return ScanResult::NeedFullParse {
+                        operand_start: &data[operand_start..],
+                        after_op: &data[i..],
+                    };
+                } else if deferred_depth > 0 {
+                    // Inside a deferred q block — check if this op needs flushing
+                    if op == b"cm" || is_skippable_graphics_op_bytes(op) {
+                        operand_start = i;
+                        continue;
+                    }
+                    // Non-skippable op (BT, BI, Do, gs, etc.) — flush deferred state.
+                    // Return operand_start so caller resumes at the trigger's operands;
+                    // the next scan_graphics_region call handles the trigger itself.
+                    return ScanResult::DeferredThenText {
+                        deferred_start: &data[deferred_start..],
+                        trigger_start: &data[operand_start..],
+                    };
+                } else if op == b"BT" {
                     return ScanResult::FoundBT { rest: &data[i..] };
                 } else if op == b"BI" {
                     return ScanResult::InlineImage { rest: &data[i..] };
@@ -1597,13 +1669,11 @@ mod tests {
     }
 
     #[test]
-    fn test_text_only_preserves_color_ops() {
+    fn test_text_only_skips_color_ops() {
+        // Color operators outside BT/ET are now skipped (they don't affect text)
         let stream = b"1 0 0 rg 0.5 g /CS1 cs";
         let ops = parse_content_stream_text_only(stream).unwrap();
-        assert_eq!(ops.len(), 3);
-        assert!(matches!(ops[0], Operator::SetFillRgb { .. }));
-        assert!(matches!(ops[1], Operator::SetFillGray { .. }));
-        assert!(matches!(ops[2], Operator::SetFillColorSpace { .. }));
+        assert_eq!(ops.len(), 0);
     }
 
     #[test]
