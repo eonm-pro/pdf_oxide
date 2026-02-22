@@ -1,17 +1,15 @@
-# PDF Oxide - Python Bindings
+# PDF Oxide - The Fastest Python PDF Library
 
-High-performance PDF parsing for Python with PDF specification compliance.
+The fastest Python PDF library for text extraction, image extraction, and document conversion. 1.0ms mean per document — 5× faster than PyMuPDF, 14× faster than pypdf. 100% pass rate on 3,830 real-world PDFs. MIT licensed.
 
-## Features
+## Why pdf_oxide?
 
-- **PDF Spec Compliance**: ISO 32000-1:2008 sections 9, 14.7-14.8
-- **Intelligent Text Extraction**: Automatic reading order detection
-- **Multi-Column Support**: 4 pluggable layout strategies
-- **Font Recovery**: 70-80% character recovery with advanced font support
-- **Complex Scripts**: RTL (Arabic/Hebrew), CJK (Japanese/Korean/Chinese), Devanagari, Thai
-- **OCR Support**: Optional DBNet++/SVTR for scanned PDFs
-- **Format Conversion**: Markdown, HTML, PlainText
-- **Performance**: 1.0ms mean — 5× faster than PyMuPDF, 14× faster than pypdf, 100% pass rate on 3,830 PDFs
+- **Fastest** — 1.0ms mean text extraction, 5× faster than PyMuPDF, 14× faster than pypdf
+- **100% reliable** — Zero failures, zero panics, zero timeouts on 3,830 test PDFs
+- **MIT licensed** — Unlike PyMuPDF (AGPL-3.0), use freely in commercial and closed-source projects
+- **Complete** — Extract text, images, forms. Create PDFs from Markdown, HTML, images. Edit existing PDFs.
+- **Complex scripts** — RTL (Arabic/Hebrew), CJK (Japanese/Korean/Chinese), Devanagari, Thai
+- **Format conversion** — PDF to Markdown, HTML, or plain text with automatic reading order
 
 ## Quick Start
 
@@ -41,6 +39,8 @@ with open("output.html", "w") as f:
 ```bash
 pip install pdf_oxide
 ```
+
+Wheels available for Linux, macOS, and Windows. Python 3.8–3.14. No system dependencies.
 
 ## Development
 ```bash
