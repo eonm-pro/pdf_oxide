@@ -17,8 +17,8 @@
 
 //! # PDF Oxide
 //!
-//! The fastest PDF library for Python and Rust. 1.0ms mean text extraction — 5× faster than
-//! PyMuPDF, 14× faster than pypdf, 36× faster than pdfplumber. 100% pass rate on 3,830
+//! The fastest PDF library for Python and Rust. 0.8ms mean text extraction — 5× faster than
+//! PyMuPDF, 15× faster than pypdf, 29× faster than pdfplumber. 100% pass rate on 3,830
 //! real-world PDFs. MIT licensed. A drop-in PyMuPDF alternative with no AGPL restrictions.
 //!
 //! ## Performance (v0.3.8)
@@ -30,28 +30,28 @@
 //!
 //! | Library | Mean | Pass Rate | License |
 //! |---------|------|-----------|---------|
-//! | **pdf_oxide** | **1.0ms** | **100%** | **MIT** |
+//! | **pdf_oxide** | **0.8ms** | **100%** | **MIT** |
 //! | unstructured | 478.4ms | 99.6% | Apache-2.0 |
-//! | PyMuPDF | 6.6ms | 99.3% | AGPL-3.0 |
-//! | pypdfium2 | 5.4ms | 99.2% | Apache-2.0 |
+//! | PyMuPDF | 4.6ms | 99.3% | AGPL-3.0 |
+//! | pypdfium2 | 4.1ms | 99.2% | Apache-2.0 |
 //! | kreuzberg | 7.2ms | 99.1% | MIT |
 //! | pymupdf4llm | 55.5ms | 99.1% | AGPL-3.0 |
 //! | pdftext | 7.3ms | 99.0% | GPL-3.0 |
 //! | extractous | 112.0ms | 98.9% | Apache-2.0 |
 //! | pdfminer | 16.8ms | 98.8% | MIT |
-//! | pdfplumber | 36.7ms | 98.8% | MIT |
+//! | pdfplumber | 23.2ms | 98.8% | MIT |
 //! | markitdown | 108.8ms | 98.6% | MIT |
-//! | pypdf | 14.4ms | 98.4% | BSD-3 |
+//! | pypdf | 12.1ms | 98.4% | BSD-3 |
 //!
 //! ### Rust PDF Libraries
 //!
 //! | Library | Mean | Pass Rate | Text Extraction |
 //! |---------|------|-----------|-----------------|
-//! | **pdf_oxide** | **1.0ms** | **100%** | **Built-in** |
-//! | oxidize_pdf | 15.4ms | 99.3% | Basic |
-//! | unpdf | 17.0ms | 95.1% | Basic |
+//! | **pdf_oxide** | **0.8ms** | **100%** | **Built-in** |
+//! | oxidize_pdf | 13.5ms | 99.1% | Basic |
+//! | unpdf | 2.8ms | 95.1% | Basic |
 //! | pdf_extract | 4.08ms | 91.5% | Basic |
-//! | lopdf | 0.86ms | 80.2% | No built-in extraction |
+//! | lopdf | 0.3ms | 80.2% | No built-in extraction |
 //!
 //! 99.5% text quality parity vs PyMuPDF, pypdfium2, and kreuzberg across the full corpus.
 //! Full benchmark details: <https://pdf.oxide.fyi/docs/performance>

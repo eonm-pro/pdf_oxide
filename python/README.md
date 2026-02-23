@@ -1,10 +1,10 @@
 # PDF Oxide - The Fastest Python PDF Library
 
-The fastest Python PDF library for text extraction, image extraction, and document conversion. 1.0ms mean per document — 5× faster than PyMuPDF, 14× faster than pypdf. 100% pass rate on 3,830 real-world PDFs. MIT licensed.
+The fastest Python PDF library for text extraction, image extraction, and document conversion. 0.8ms mean per document — 5× faster than PyMuPDF, 15× faster than pypdf. 100% pass rate on 3,830 real-world PDFs. MIT licensed.
 
 ## Why pdf_oxide?
 
-- **Fastest** — 1.0ms mean text extraction, 5× faster than PyMuPDF, 14× faster than pypdf
+- **Fastest** — 0.8ms mean text extraction, 5× faster than PyMuPDF, 15× faster than pypdf
 - **100% reliable** — Zero failures, zero panics, zero timeouts on 3,830 test PDFs
 - **MIT licensed** — Unlike PyMuPDF (AGPL-3.0), use freely in commercial and closed-source projects
 - **Complete** — Extract text, images, forms. Create PDFs from Markdown, HTML, images. Edit existing PDFs.

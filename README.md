@@ -1,6 +1,6 @@
 # PDF Oxide - The Fastest PDF Library for Python and Rust
 
-The fastest Python PDF library for text extraction, image extraction, and markdown conversion. Built on a Rust core — 1.0ms mean per document, 5× faster than PyMuPDF, 14× faster than pypdf. 100% pass rate on 3,830 real-world PDFs. MIT licensed.
+The fastest Python PDF library for text extraction, image extraction, and markdown conversion. Built on a Rust core — 0.8ms mean per document, 5× faster than PyMuPDF, 15× faster than pypdf. 100% pass rate on 3,830 real-world PDFs. MIT licensed.
 
 [![Crates.io](https://img.shields.io/crates/v/pdf_oxide.svg)](https://crates.io/crates/pdf_oxide)
 [![PyPI](https://img.shields.io/pypi/v/pdf_oxide.svg)](https://pypi.org/project/pdf_oxide/)
@@ -42,7 +42,7 @@ pdf_oxide = "0.3"
 
 ## Why pdf_oxide?
 
-- **Fast** — 1.0ms mean per document, 5× faster than PyMuPDF, 14× faster than pypdf, 36× faster than pdfplumber
+- **Fast** — 0.8ms mean per document, 5× faster than PyMuPDF, 15× faster than pypdf, 29× faster than pdfplumber
 - **Reliable** — 100% pass rate on 3,830 test PDFs, zero panics, zero timeouts
 - **Complete** — Text extraction, image extraction, PDF creation, and editing in one library
 - **Dual-language** — First-class Rust API and Python bindings via PyO3
@@ -56,28 +56,28 @@ Benchmarked on 3,830 PDFs from three independent public test suites (veraPDF, Mo
 
 | Library | Mean | p99 | Pass Rate | License |
 |---------|------|-----|-----------|---------|
-| **PDF Oxide** | **1.0ms** | **10ms** | **100%** | **MIT** |
+| **PDF Oxide** | **0.8ms** | **9ms** | **100%** | **MIT** |
 | unstructured | 478.4ms | 1,477ms | 99.6% | Apache-2.0 |
-| PyMuPDF | 6.6ms | 39ms | 99.3% | AGPL-3.0 |
-| pypdfium2 | 5.4ms | 44ms | 99.2% | Apache-2.0 |
+| PyMuPDF | 4.6ms | 28ms | 99.3% | AGPL-3.0 |
+| pypdfium2 | 4.1ms | 42ms | 99.2% | Apache-2.0 |
 | kreuzberg | 7.2ms | 49ms | 99.1% | MIT |
 | pymupdf4llm | 55.5ms | 280ms | 99.1% | AGPL-3.0 |
 | pdftext | 7.3ms | 82ms | 99.0% | GPL-3.0 |
 | extractous | 112.0ms | 165ms | 98.9% | Apache-2.0 |
 | pdfminer | 16.8ms | 124ms | 98.8% | MIT |
-| pdfplumber | 36.7ms | 201ms | 98.8% | MIT |
+| pdfplumber | 23.2ms | 189ms | 98.8% | MIT |
 | markitdown | 108.8ms | 378ms | 98.6% | MIT |
-| pypdf | 14.4ms | 99ms | 98.4% | BSD-3 |
+| pypdf | 12.1ms | 97ms | 98.4% | BSD-3 |
 
 ### Rust Libraries
 
 | Library | Mean | p99 | Pass Rate | Text Extraction |
 |---------|------|-----|-----------|-----------------|
-| **PDF Oxide** | **1.0ms** | **12ms** | **100%** | **Built-in** |
-| oxidize_pdf | 15.4ms | 33ms | 99.3% | Basic |
-| unpdf | 17.0ms | 11ms | 95.1% | Basic |
+| **PDF Oxide** | **0.8ms** | **9ms** | **100%** | **Built-in** |
+| oxidize_pdf | 13.5ms | 11ms | 99.1% | Basic |
+| unpdf | 2.8ms | 10ms | 95.1% | Basic |
 | pdf_extract | 4.08ms | 37ms | 91.5% | Basic |
-| lopdf | 0.86ms | 6ms | 80.2% | No built-in extraction |
+| lopdf | 0.3ms | 2ms | 80.2% | No built-in extraction |
 
 ### Text Quality
 
@@ -227,4 +227,4 @@ cargo build && cargo test && cargo fmt && cargo clippy -- -D warnings
 
 ---
 
-**Rust** + **Python** | MIT/Apache-2.0 | 100% pass rate on 3,830 PDFs | 1.0ms mean | 5× faster than PyMuPDF | v0.3.8
+**Rust** + **Python** | MIT/Apache-2.0 | 100% pass rate on 3,830 PDFs | 0.8ms mean | 5× faster than PyMuPDF | v0.3.8
