@@ -1284,6 +1284,13 @@ impl TjBuffer {
 
     /// Append a text string to the buffer.
     fn append(&mut self, bytes: &[u8], fonts: &HashMap<String, Arc<FontInfo>>) -> Result<()> {
+        // PDF spec Section 7.3.4.2: implementation limit of 32,767 bytes per string.
+        // Malformed PDFs may exceed this, causing text blowup.
+        let bytes = if bytes.len() > 32_767 {
+            &bytes[..32_767]
+        } else {
+            bytes
+        };
         self.text.extend_from_slice(bytes);
 
         // Convert to Unicode using helper function
@@ -5255,6 +5262,18 @@ impl TextExtractor {
     }
 
     fn show_text(&mut self, text: &[u8]) -> Result<()> {
+        // PDF spec Section 7.3.4.2: implementation limit of 32,767 bytes per string.
+        // Malformed PDFs may exceed this (e.g., veraPDF 6-1-12-t03-fail-c.pdf with 65K chars).
+        // Cap to spec limit to prevent text blowup.
+        let text = if text.len() > 32_767 {
+            log::warn!(
+                "String exceeds PDF spec limit: {} bytes (max 32,767), truncating",
+                text.len()
+            );
+            &text[..32_767]
+        } else {
+            text
+        };
         for &byte in text {
             let char_code = byte as u16;
 
