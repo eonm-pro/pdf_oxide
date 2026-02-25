@@ -2153,6 +2153,32 @@ fn scan_graphics_region<'a>(data: &'a [u8], consecutive_errors: &mut usize) -> S
 
         match BYTE_CLASS[data[i] as usize] {
             SCAN_ALPHA => {
+                let first_byte = data[i];
+                let second_is_non_alpha = i + 1 >= len
+                    || BYTE_CLASS[data[i + 1] as usize] != SCAN_ALPHA;
+
+                // Fast path for common single-char skippable operators.
+                // Avoids reading the full operator name and is_skippable check.
+                // Path: m(moveto), l(lineto), c(curveto), v/y(curves), h(close)
+                // Paint: f/F(fill), B/b(fill+stroke), S/s(stroke), n(endpath), W(clip)
+                // Color: g/G(gray), k/K(cmyk)
+                // State: w(linewidth), d(dash), i(flatness), J/j(cap/join), M(miter)
+                // Note: q/Q excluded (need deferred depth tracking)
+                if second_is_non_alpha
+                    && matches!(
+                        first_byte,
+                        b'm' | b'l' | b'c' | b'v' | b'y' | b'h'
+                            | b'f' | b'F' | b'B' | b'b' | b'S' | b's' | b'n' | b'W'
+                            | b'g' | b'G' | b'k' | b'K'
+                            | b'w' | b'd' | b'i' | b'J' | b'j' | b'M'
+                    )
+                {
+                    i += 1;
+                    *consecutive_errors = 0;
+                    operand_start = i;
+                    continue;
+                }
+
                 let op_start = i;
                 while i < len
                     && (data[i].is_ascii_alphanumeric()
