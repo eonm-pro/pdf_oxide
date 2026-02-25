@@ -774,7 +774,7 @@ fn build_operator(name: &str, operands: Vec<Object>) -> Operator {
                     _ => None,
                 })
                 .collect();
-            Operator::SetFillColorN { components, name }
+            Operator::SetFillColorN { components, name: name.map(Box::new) }
         },
         "SCN" => {
             // Set stroke color with pattern support: c1 c2 ... cn [name] SCN
@@ -792,7 +792,7 @@ fn build_operator(name: &str, operands: Vec<Object>) -> Operator {
                     _ => None,
                 })
                 .collect();
-            Operator::SetStrokeColorN { components, name }
+            Operator::SetStrokeColorN { components, name: name.map(Box::new) }
         },
 
         // Text object
@@ -948,7 +948,7 @@ fn build_operator(name: &str, operands: Vec<Object>) -> Operator {
             // Begin marked content with properties: tag properties BDC
             // properties can be a dictionary or a name (reference to /Properties resource)
             let tag = get_name(&operands, 0).unwrap_or("").to_string();
-            let properties = operands.get(1).cloned().unwrap_or(Object::Null);
+            let properties = Box::new(operands.get(1).cloned().unwrap_or(Object::Null));
             Operator::BeginMarkedContentDict { tag, properties }
         },
         "EMC" => {
@@ -959,7 +959,7 @@ fn build_operator(name: &str, operands: Vec<Object>) -> Operator {
         // Unknown operator
         _ => Operator::Other {
             name: name.to_string(),
-            operands,
+            operands: Box::new(operands),
         },
     }
 }
@@ -1072,7 +1072,7 @@ fn parse_inline_image(input: &[u8]) -> IResult<&[u8], Operator> {
     remaining = &remaining[ei_pos + 2..]; // Skip past whitespace and "EI"
 
     // Step 5: Return the InlineImage operator
-    Ok((remaining, Operator::InlineImage { dict, data }))
+    Ok((remaining, Operator::InlineImage { dict: Box::new(dict), data }))
 }
 
 /// Find the EI operator in the input, which must be preceded by whitespace.
@@ -2016,7 +2016,7 @@ fn parse_text_operator_fast(input: &[u8]) -> Option<(&[u8], Operator)> {
                         let components: Vec<f32> = operands[..op_count].iter()
                             .filter_map(|o| match o { Some(FastOperand::Number(n)) => Some(*n), _ => None })
                             .collect();
-                        Operator::SetFillColorN { components, name }
+                        Operator::SetFillColorN { components, name: name.map(Box::new) }
                     },
                     b"SCN" => {
                         let name = match &operands[op_count.saturating_sub(1)] {
@@ -2026,7 +2026,7 @@ fn parse_text_operator_fast(input: &[u8]) -> Option<(&[u8], Operator)> {
                         let components: Vec<f32> = operands[..op_count].iter()
                             .filter_map(|o| match o { Some(FastOperand::Number(n)) => Some(*n), _ => None })
                             .collect();
-                        Operator::SetStrokeColorN { components, name }
+                        Operator::SetStrokeColorN { components, name: name.map(Box::new) }
                     },
                     b"gs" => {
                         let dict_name = match &operands[0] { Some(FastOperand::Name(n)) => n.clone(), _ => String::new() };

@@ -5352,7 +5352,7 @@ impl DocumentEditor {
             },
             Operator::BeginMarkedContentDict { tag, properties } => {
                 output.extend_from_slice(format!("/{} ", tag).as_bytes());
-                self.serialize_object(output, properties);
+                self.serialize_object(output, &properties);
                 output.extend_from_slice(b" BDC\n");
             },
             Operator::EndMarkedContent => output.extend_from_slice(b"EMC\n"),
@@ -5365,7 +5365,7 @@ impl DocumentEditor {
             // Inline image (complex - serialize full BI...ID...EI sequence)
             Operator::InlineImage { dict, data } => {
                 output.extend_from_slice(b"BI\n");
-                for (key, value) in dict {
+                for (key, value) in dict.iter() {
                     output.extend_from_slice(format!("/{} ", key).as_bytes());
                     self.serialize_object(output, value);
                     output.push(b'\n');
@@ -5377,7 +5377,7 @@ impl DocumentEditor {
 
             // Other operators (fallback for unrecognized operators)
             Operator::Other { name, operands } => {
-                for operand in operands {
+                for operand in operands.iter() {
                     self.serialize_object(output, operand);
                     output.push(b' ');
                 }
