@@ -1893,6 +1893,9 @@ impl PdfDocument {
                     e
                 );
             }
+            // Pre-populate image_xobject_cache for all XObject refs across all pages.
+            // Sorts refs by xref offset for sequential I/O on large files.
+            self.prefetch_xobject_subtypes();
         }
 
         // Check cache again after bulk population
@@ -1957,6 +1960,80 @@ impl PdfDocument {
         self.collect_all_pages(pages_ref, &mut page_index, &mut inherited, &mut HashSet::new())?;
         log::debug!("Populated page cache with {} pages", page_index);
         Ok(())
+    }
+
+    /// Pre-populate `image_xobject_cache` for all XObject refs across all cached pages.
+    /// Collects all unique XObject references, sorts them by xref offset for sequential
+    /// I/O (avoids random seeking in large files), then peeks each one via `is_form_xobject()`.
+    fn prefetch_xobject_subtypes(&mut self) {
+        let mut xobj_refs: Vec<ObjectRef> = Vec::new();
+        let page_dicts: Vec<Object> = self.page_cache.values().cloned().collect();
+
+        for page_obj in &page_dicts {
+            let page_dict = match page_obj.as_dict() {
+                Some(d) => d,
+                None => continue,
+            };
+            let resources = match page_dict.get("Resources") {
+                Some(r) => {
+                    if let Some(ref_obj) = r.as_reference() {
+                        match self.load_object(ref_obj) {
+                            Ok(obj) => obj,
+                            Err(_) => continue,
+                        }
+                    } else {
+                        r.clone()
+                    }
+                },
+                None => continue,
+            };
+            let res_dict = match resources.as_dict() {
+                Some(d) => d,
+                None => continue,
+            };
+            let xobj_obj = match res_dict.get("XObject") {
+                Some(x) => {
+                    if let Some(ref_obj) = x.as_reference() {
+                        match self.load_object(ref_obj) {
+                            Ok(obj) => obj,
+                            Err(_) => continue,
+                        }
+                    } else {
+                        x.clone()
+                    }
+                },
+                None => continue,
+            };
+            if let Some(xobj_dict) = xobj_obj.as_dict() {
+                for (_name, val) in xobj_dict {
+                    if let Some(obj_ref) = val.as_reference() {
+                        if !self.image_xobject_cache.contains(&obj_ref) {
+                            xobj_refs.push(obj_ref);
+                        }
+                    }
+                }
+            }
+        }
+
+        xobj_refs.sort_unstable_by_key(|r| (r.id, r.gen));
+        xobj_refs.dedup();
+
+        // Sort by xref offset for sequential I/O
+        xobj_refs.sort_by_key(|r| {
+            self.xref
+                .get(r.id)
+                .map(|e| e.offset)
+                .unwrap_or(u64::MAX)
+        });
+
+        log::debug!(
+            "Prefetching XObject subtypes for {} unique refs",
+            xobj_refs.len()
+        );
+
+        for obj_ref in xobj_refs {
+            self.is_form_xobject(obj_ref);
+        }
     }
 
     /// Recursively walk the page tree and collect all pages into page_cache.
@@ -3601,7 +3678,9 @@ impl PdfDocument {
             }
         }
 
-        // Check XObjects: if any are Form type, they could contain nested text
+        // Check XObjects: if any are Form type, they could contain nested text.
+        // Uses lightweight is_form_xobject() peek instead of full load_object()
+        // to avoid expensive I/O for image-heavy PDFs (e.g., Deutsche: 375MB images).
         if let Some(xobj_obj) = res_dict.get("XObject") {
             let xobj_dict_obj = if let Some(ref_obj) = xobj_obj.as_reference() {
                 self.load_object(ref_obj).ok()
@@ -3611,20 +3690,14 @@ impl PdfDocument {
             if let Some(xobj_dict_resolved) = xobj_dict_obj {
                 if let Some(xobj_dict) = xobj_dict_resolved.as_dict() {
                     for (_name, xobj_ref) in xobj_dict {
-                        // Load and check Subtype
-                        let xobj = if let Some(ref_obj) = xobj_ref.as_reference() {
-                            self.load_object(ref_obj).ok()
-                        } else {
-                            Some(xobj_ref.clone())
-                        };
-                        if let Some(obj) = xobj {
-                            if let Some(d) = obj.as_dict() {
-                                let subtype = d.get("Subtype")
-                                    .and_then(|s| s.as_name())
-                                    .unwrap_or("");
-                                if subtype == "Form" {
-                                    return false; // Form XObject could contain text
-                                }
+                        if let Some(ref_obj) = xobj_ref.as_reference() {
+                            // Use lightweight 1KB peek instead of full object load
+                            if self.is_form_xobject(ref_obj) {
+                                return false; // Form XObject could contain text
+                            }
+                        } else if let Some(d) = xobj_ref.as_dict() {
+                            if d.get("Subtype").and_then(|s| s.as_name()) == Some("Form") {
+                                return false;
                             }
                         }
                     }
