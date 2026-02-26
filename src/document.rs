@@ -3389,6 +3389,84 @@ impl PdfDocument {
         false
     }
 
+    /// Check if a page definitely cannot produce any text based on its resources.
+    ///
+    /// Returns `true` if the page has no `/Font` resources and no Form XObjects
+    /// (which could contain nested text). This allows skipping content stream
+    /// decompression and parsing entirely for image-only/scanned pages.
+    ///
+    /// Returns `false` (conservative) if resources can't be inspected.
+    fn page_cannot_have_text(&mut self, page_dict: &HashMap<String, Object>) -> bool {
+        let resources = match page_dict.get("Resources") {
+            Some(r) => {
+                if let Some(ref_obj) = r.as_reference() {
+                    match self.load_object(ref_obj) {
+                        Ok(obj) => obj,
+                        Err(_) => return false, // Can't resolve — be conservative
+                    }
+                } else {
+                    r.clone()
+                }
+            },
+            None => return true, // No resources at all → no text possible
+        };
+
+        let res_dict = match resources.as_dict() {
+            Some(d) => d,
+            None => return false,
+        };
+
+        // If the page has any /Font resources, it might produce text
+        if let Some(font_obj) = res_dict.get("Font") {
+            let font_dict = if let Some(ref_obj) = font_obj.as_reference() {
+                self.load_object(ref_obj).ok()
+            } else {
+                Some(font_obj.clone())
+            };
+            if let Some(fd) = font_dict {
+                if let Some(d) = fd.as_dict() {
+                    if !d.is_empty() {
+                        return false; // Has fonts → might have text
+                    }
+                }
+            }
+        }
+
+        // Check XObjects: if any are Form type, they could contain nested text
+        if let Some(xobj_obj) = res_dict.get("XObject") {
+            let xobj_dict_obj = if let Some(ref_obj) = xobj_obj.as_reference() {
+                self.load_object(ref_obj).ok()
+            } else {
+                Some(xobj_obj.clone())
+            };
+            if let Some(xobj_dict_resolved) = xobj_dict_obj {
+                if let Some(xobj_dict) = xobj_dict_resolved.as_dict() {
+                    for (_name, xobj_ref) in xobj_dict {
+                        // Load and check Subtype
+                        let xobj = if let Some(ref_obj) = xobj_ref.as_reference() {
+                            self.load_object(ref_obj).ok()
+                        } else {
+                            Some(xobj_ref.clone())
+                        };
+                        if let Some(obj) = xobj {
+                            if let Some(d) = obj.as_dict() {
+                                let subtype = d.get("Subtype")
+                                    .and_then(|s| s.as_name())
+                                    .unwrap_or("");
+                                if subtype == "Form" {
+                                    return false; // Form XObject could contain text
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // No fonts and no Form XObjects → page is image-only
+        true
+    }
+
     /// Extract text using structure tree for Tagged PDFs.
     ///
     /// This method implements PDF spec-compliant text extraction for Tagged PDFs
@@ -3817,6 +3895,13 @@ impl PdfDocument {
             reason: "Page is not a dictionary".to_string(),
         })?;
 
+        // Fast pre-check: skip pages that cannot produce text based on resources alone.
+        // Image-only/scanned pages have no /Font resources and only Image XObjects,
+        // so we can skip content stream decompression and parsing entirely.
+        if self.page_cannot_have_text(page_dict) {
+            return Ok(Vec::new());
+        }
+
         // Get content stream data — skip page on decode failure (Annex I)
         let content_data = match self.get_page_content_data(page_index) {
             Ok(data) => data,
@@ -3892,6 +3977,11 @@ impl PdfDocument {
             offset: 0,
             reason: "Page is not a dictionary".to_string(),
         })?;
+
+        // Fast pre-check: skip image-only pages before decompression
+        if self.page_cannot_have_text(page_dict) {
+            return Ok(Vec::new());
+        }
 
         // Get content stream data — skip page on decode failure (Annex I)
         let content_data = match self.get_page_content_data(page_index) {
@@ -5984,6 +6074,10 @@ impl PdfDocument {
 
         let mut images = Vec::new();
         let mut ctm_stack = vec![crate::content::Matrix::identity()];
+        // Shared cycle detection stack for Form XObject recursion.
+        // This must persist across all Do operator calls to detect circular references
+        // (e.g., Form X0 references X1 which references X0).
+        let mut xobject_stack = Vec::new();
 
         // Parse content stream operators to extract images from Do operators
         // Instead of only checking the XObject dictionary, we parse the actual page content
@@ -6019,7 +6113,7 @@ impl PdfDocument {
                             .copied()
                             .unwrap_or_else(crate::content::Matrix::identity);
                         if let Ok(mut xobj_images) =
-                            self.extract_images_from_xobject_do(&name, res, current_ctm)
+                            self.extract_images_from_xobject_do(&name, res, current_ctm, &mut xobject_stack)
                         {
                             images.append(&mut xobj_images);
                         }
@@ -6065,6 +6159,7 @@ impl PdfDocument {
         name: &str,
         resources: &Object,
         ctm: crate::content::Matrix,
+        xobject_stack: &mut Vec<ObjectRef>,
     ) -> Result<Vec<crate::extractors::PdfImage>> {
         use crate::extractors::extract_image_from_xobject;
 
@@ -6178,7 +6273,7 @@ impl PdfDocument {
                         &xobject,
                         resources,
                         ctm,
-                        &mut Vec::new(),
+                        xobject_stack,
                     ) {
                         images.append(&mut form_images);
                     }
@@ -6271,7 +6366,7 @@ impl PdfDocument {
                         .copied()
                         .unwrap_or_else(crate::content::Matrix::identity);
                     if let Ok(mut xobj_images) =
-                        self.extract_images_from_xobject_do(&name, &form_resources, current_ctm)
+                        self.extract_images_from_xobject_do(&name, &form_resources, current_ctm, xobject_stack)
                     {
                         images.append(&mut xobj_images);
                     }
@@ -6960,5 +7055,75 @@ mod tests {
         let msg = format!("{}", err);
         assert!(msg.contains("Recursion depth limit exceeded"));
         assert!(msg.contains("100"));
+    }
+
+    /// Regression test for #163: circular Form XObject references must not cause
+    /// a stack overflow / segfault. The PDF has X0→X1→X0 circular references.
+    #[test]
+    fn test_issue_163_circular_form_xobjects() {
+        // Build a minimal PDF with circular Form XObject references, write to temp file.
+        let pdf_bytes = build_circular_xobject_pdf();
+        let tmp_path = std::env::temp_dir().join("pdf_oxide_test_issue163.pdf");
+        std::fs::write(&tmp_path, &pdf_bytes).unwrap();
+        let mut doc = PdfDocument::open(&tmp_path).unwrap();
+        let _ = std::fs::remove_file(&tmp_path);
+        assert_eq!(doc.page_count().unwrap(), 1);
+
+        // extract_text should not hang or crash
+        let text = doc.extract_text(0).unwrap();
+        assert!(text.is_empty() || text.len() < 100); // No real text content
+
+        // extract_images should not hang or crash (this was the segfault path)
+        let images = doc.extract_images(0).unwrap();
+        assert!(images.is_empty()); // No real images, just circular forms
+
+        // to_markdown should not hang or crash
+        let md = doc.to_markdown(0, &crate::converters::ConversionOptions::default()).unwrap();
+        drop(md); // Just verify it completes
+    }
+
+    /// Build a minimal PDF with circular Form XObjects: X0 references X1, X1 references X0.
+    fn build_circular_xobject_pdf() -> Vec<u8> {
+        let mut pdf = b"%PDF-1.4\n".to_vec();
+
+        let off1 = pdf.len();
+        pdf.extend_from_slice(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+
+        let off2 = pdf.len();
+        pdf.extend_from_slice(b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+
+        let off3 = pdf.len();
+        pdf.extend_from_slice(b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /XObject << /X0 5 0 R /X1 6 0 R >> >> >>\nendobj\n");
+
+        let off4 = pdf.len();
+        let content = b"/X0 Do";
+        pdf.extend_from_slice(format!("4 0 obj\n<< /Length {} >>\nstream\n", content.len()).as_bytes());
+        pdf.extend_from_slice(content);
+        pdf.extend_from_slice(b"\nendstream\nendobj\n");
+
+        let off5 = pdf.len();
+        let x0_content = b"/X1 Do";
+        pdf.extend_from_slice(format!("5 0 obj\n<< /Type /XObject /Subtype /Form /BBox [0 0 100 100] /Resources << /XObject << /X1 6 0 R >> >> /Length {} >>\nstream\n", x0_content.len()).as_bytes());
+        pdf.extend_from_slice(x0_content);
+        pdf.extend_from_slice(b"\nendstream\nendobj\n");
+
+        let off6 = pdf.len();
+        let x1_content = b"/X0 Do";
+        pdf.extend_from_slice(format!("6 0 obj\n<< /Type /XObject /Subtype /Form /BBox [0 0 100 100] /Resources << /XObject << /X0 5 0 R >> >> /Length {} >>\nstream\n", x1_content.len()).as_bytes());
+        pdf.extend_from_slice(x1_content);
+        pdf.extend_from_slice(b"\nendstream\nendobj\n");
+
+        let xref_off = pdf.len();
+        pdf.extend_from_slice(b"xref\n0 7\n");
+        pdf.extend_from_slice(b"0000000000 65535 f \n");
+        pdf.extend_from_slice(format!("{:010} 00000 n \n", off1).as_bytes());
+        pdf.extend_from_slice(format!("{:010} 00000 n \n", off2).as_bytes());
+        pdf.extend_from_slice(format!("{:010} 00000 n \n", off3).as_bytes());
+        pdf.extend_from_slice(format!("{:010} 00000 n \n", off4).as_bytes());
+        pdf.extend_from_slice(format!("{:010} 00000 n \n", off5).as_bytes());
+        pdf.extend_from_slice(format!("{:010} 00000 n \n", off6).as_bytes());
+        pdf.extend_from_slice(format!("trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n{}\n%%EOF\n", xref_off).as_bytes());
+
+        pdf
     }
 }

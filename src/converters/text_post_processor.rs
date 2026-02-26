@@ -296,9 +296,76 @@ impl TextPostProcessor {
         matches!(ch, ')' | ']' | '}' | '>' | '-' | ',' | '.' | ':' | ';' | '\'' | '"')
     }
 
+    /// Repair broken ligatures from PDFs with corrupt ToUnicode CMaps.
+    ///
+    /// Some LaTeX-generated PDFs have broken ToUnicode CMaps that map ligature
+    /// glyphs (fi, fl, ff, ffi, ffl) to incorrect characters. Common mappings:
+    ///
+    /// - `ff` → `!` (e.g., "di!erent" → "different")
+    /// - `ffi` → `"` (e.g., 'o"ces' → "offices")
+    /// - `fi` → `#` (e.g., "#nancial" → "financial")
+    /// - `fl` → `$` (e.g., "$oor" → "floor")
+    /// - `ffl` → `%` (e.g., "ba%e" → "baffle")
+    ///
+    /// The heuristic: these characters only represent broken ligatures when
+    /// surrounded by letters (not at word boundaries, sentence starts, or in
+    /// natural punctuation contexts).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use pdf_oxide::converters::text_post_processor::TextPostProcessor;
+    ///
+    /// assert_eq!(TextPostProcessor::repair_ligatures("di!erent"), "different");
+    /// assert_eq!(TextPostProcessor::repair_ligatures("Hello!"), "Hello!");
+    /// ```
+    pub fn repair_ligatures(text: &str) -> String {
+        let chars: Vec<char> = text.chars().collect();
+        let len = chars.len();
+        if len == 0 {
+            return String::new();
+        }
+
+        let mut result = String::with_capacity(text.len());
+        let mut i = 0;
+
+        while i < len {
+            let ch = chars[i];
+
+            // Check for potential broken ligature characters
+            let replacement = match ch {
+                '!' => Some("ff"),
+                '"' => Some("ffi"),
+                '#' => Some("fi"),
+                '$' => Some("fl"),
+                '%' => Some("ffl"),
+                _ => None,
+            };
+
+            if let Some(lig) = replacement {
+                // Only replace if surrounded by letters (not at word boundaries)
+                let prev_is_letter = i > 0 && chars[i - 1].is_alphabetic();
+                let next_is_letter = i + 1 < len && chars[i + 1].is_alphabetic();
+
+                if prev_is_letter && next_is_letter {
+                    result.push_str(lig);
+                } else {
+                    result.push(ch);
+                }
+            } else {
+                result.push(ch);
+            }
+
+            i += 1;
+        }
+
+        result
+    }
+
     /// Apply full text post-processing pipeline.
     ///
-    /// Applies hyphenation removal, whitespace normalization, and special character spacing in sequence.
+    /// Applies ligature repair, hyphenation removal, whitespace normalization,
+    /// and special character spacing in sequence.
     ///
     /// # Arguments
     ///
@@ -308,7 +375,8 @@ impl TextPostProcessor {
     ///
     /// Fully processed text with improved extraction quality
     pub fn process(text: &str) -> String {
-        let hyphenated_fixed = Self::rejoin_hyphenated_words(text);
+        let ligatures_fixed = Self::repair_ligatures(text);
+        let hyphenated_fixed = Self::rejoin_hyphenated_words(&ligatures_fixed);
         let whitespace_normalized = Self::normalize_whitespace(&hyphenated_fixed);
         Self::ensure_special_char_spacing(&whitespace_normalized)
     }
@@ -530,6 +598,79 @@ mod tests {
         // Should have: rejoined word + normalized spaces + special char spacing
         assert!(output.contains("modalities"));
         assert!(output.contains("α"));
+    }
+
+    // ===== Ligature Repair Tests =====
+
+    #[test]
+    fn test_repair_ligatures_ff() {
+        // ! → ff
+        assert_eq!(TextPostProcessor::repair_ligatures("di!erent"), "different");
+        assert_eq!(TextPostProcessor::repair_ligatures("e!ect"), "effect");
+    }
+
+    #[test]
+    fn test_repair_ligatures_ffi() {
+        // " → ffi (between letters)
+        assert_eq!(TextPostProcessor::repair_ligatures("o\"ces"), "offices");
+        assert_eq!(TextPostProcessor::repair_ligatures("e\"cient"), "efficient");
+    }
+
+    #[test]
+    fn test_repair_ligatures_fi() {
+        // # → fi
+        assert_eq!(TextPostProcessor::repair_ligatures("#nancial"), "#nancial"); // start of text — not a ligature
+        assert_eq!(TextPostProcessor::repair_ligatures("de#ne"), "define");
+        assert_eq!(TextPostProcessor::repair_ligatures("bene#t"), "benefit");
+    }
+
+    #[test]
+    fn test_repair_ligatures_fl() {
+        // $ → fl
+        assert_eq!(TextPostProcessor::repair_ligatures("$oor"), "$oor"); // start of text
+        assert_eq!(TextPostProcessor::repair_ligatures("re$ect"), "reflect");
+    }
+
+    #[test]
+    fn test_repair_ligatures_ffl() {
+        // % → ffl
+        assert_eq!(TextPostProcessor::repair_ligatures("ba%e"), "baffle");
+        assert_eq!(TextPostProcessor::repair_ligatures("ra%e"), "raffle");
+    }
+
+    #[test]
+    fn test_repair_ligatures_preserves_punctuation() {
+        // ! at end of sentence — not a ligature
+        assert_eq!(TextPostProcessor::repair_ligatures("Hello!"), "Hello!");
+        // ! at start of word — not a ligature
+        assert_eq!(TextPostProcessor::repair_ligatures("!important"), "!important");
+        // " as quote at word boundary
+        assert_eq!(TextPostProcessor::repair_ligatures("He said \"hello\""), "He said \"hello\"");
+        // # at start
+        assert_eq!(TextPostProcessor::repair_ligatures("#hashtag"), "#hashtag");
+        // $ as currency
+        assert_eq!(TextPostProcessor::repair_ligatures("$100"), "$100");
+        // % as percent
+        assert_eq!(TextPostProcessor::repair_ligatures("100%"), "100%");
+    }
+
+    #[test]
+    fn test_repair_ligatures_multiple() {
+        assert_eq!(
+            TextPostProcessor::repair_ligatures("the di!erent o\"ces"),
+            "the different offices"
+        );
+    }
+
+    #[test]
+    fn test_repair_ligatures_empty() {
+        assert_eq!(TextPostProcessor::repair_ligatures(""), "");
+    }
+
+    #[test]
+    fn test_repair_ligatures_no_changes() {
+        let input = "normal text without broken ligatures";
+        assert_eq!(TextPostProcessor::repair_ligatures(input), input);
     }
 
     #[test]
