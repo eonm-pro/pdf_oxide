@@ -298,6 +298,8 @@ converter.convert("input.pdf", "archive.pdf")?;
 
 ## OCR - Extracting Text from Scanned PDFs
 
+> For a comprehensive guide covering model selection, configuration reference, resize strategies, and troubleshooting, see the [OCR Guide](OCR_GUIDE.md).
+
 PDFOxide can extract text from scanned PDFs using PaddleOCR models via ONNX Runtime. Enable the `ocr` feature:
 
 ```toml

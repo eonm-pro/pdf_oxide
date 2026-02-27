@@ -552,6 +552,22 @@ try {
 | `.saveEncryptedToBytes(pass, owner?, print?, copy?, modify?, annotate?)` | `Uint8Array` | Save with AES-256 encryption |
 | `.free()` | `void` | Release WASM memory |
 
+## Feature Availability
+
+Some features require native dependencies and are **not available** in WebAssembly builds:
+
+| Feature | WASM | Notes |
+|---------|------|-------|
+| Text extraction | Yes | Full support |
+| PDF creation | Yes | Markdown, HTML, text, images |
+| PDF editing | Yes | Full support |
+| Encryption | Yes | AES-256 |
+| OCR | **No** | Requires ONNX Runtime (native only) |
+| Digital signatures | **No** | Requires native crypto libraries |
+| Page rendering | **No** | Requires tiny-skia (native only) |
+
+For OCR support, use the [Rust](getting-started-rust.md) or [Python](getting-started-python.md) bindings. See the [OCR Guide](OCR_GUIDE.md) for details.
+
 ## Next Steps
 
 - [TypeScript Definitions](../examples/wasm_node/pdf_oxide.d.ts) — Full type signatures

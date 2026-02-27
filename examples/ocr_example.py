@@ -21,11 +21,18 @@ Prerequisites:
 Usage:
     python ocr_example.py <pdf_file> --det <det_model> --rec <rec_model> --dict <dict_file>
 
-Example:
-    python ocr_example.py scanned.pdf \
-        --det models/det.onnx \
-        --rec models/rec.onnx \
-        --dict models/en_dict.txt
+Example (recommended V4 det + V5 rec):
+    python ocr_example.py scanned.pdf \\
+        --det .models/det.onnx \\
+        --rec .models/rec.onnx \\
+        --dict .models/en_dict.txt
+
+Example (full V5 stack):
+    python ocr_example.py scanned.pdf \\
+        --det .models/v5/det.onnx \\
+        --rec .models/v5/rec.onnx \\
+        --dict .models/v5/en_dict.txt \\
+        --v5
 """
 
 import argparse
@@ -40,6 +47,11 @@ def main():
     parser.add_argument("--rec", required=True, help="Path to recognition model (ONNX)")
     parser.add_argument("--dict", required=True, help="Path to character dictionary")
     parser.add_argument("--page", type=int, help="Process only this page (0-indexed)")
+    parser.add_argument(
+        "--v5",
+        action="store_true",
+        help="Use PP-OCRv5 config (high-res detection input, for V5 detection models)",
+    )
     args = parser.parse_args()
 
     # Import pdf_oxide
@@ -77,13 +89,11 @@ def main():
     print()
 
     # Create OCR configuration
-    print("Configuring OCR engine...")
-    config = OcrConfig(
-        det_threshold=0.3,
-        box_threshold=0.5,
-        rec_threshold=0.5,
-        num_threads=4,
-    )
+    # use_v5=True preserves high-resolution input for V5 detection models.
+    # For the default V4 det + V5 rec combination, use_v5 should be False.
+    if args.v5:
+        print("Using PP-OCRv5 config (high-resolution detection input)")
+    config = OcrConfig(use_v5=args.v5)
     print(f"Config: {config}")
 
     # Load OCR engine
