@@ -399,6 +399,172 @@ impl WasmPdfDocument {
     }
 
     // ========================================================================
+    // Group 6b: Document Structure (Outline, Annotations, Paths)
+    // ========================================================================
+
+    /// Get the document outline (bookmarks / table of contents).
+    ///
+    /// @returns Array of outline items or null if no outline exists.
+    /// Each item has: { title, page (number|null), dest_name (string, optional), children (array) }
+    #[wasm_bindgen(js_name = "getOutline")]
+    pub fn get_outline(&mut self) -> Result<JsValue, JsValue> {
+        let outline = self
+            .inner
+            .get_outline()
+            .map_err(|e| JsValue::from_str(&format!("Failed to get outline: {}", e)))?;
+
+        match outline {
+            None => Ok(JsValue::NULL),
+            Some(items) => {
+                let json = outline_to_json(&items);
+                serde_wasm_bindgen::to_value(&json)
+                    .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+            }
+        }
+    }
+
+    /// Get annotations from a page.
+    ///
+    /// @param page_index - Zero-based page number
+    /// @returns Array of annotation objects with fields like subtype, rect, contents, etc.
+    #[wasm_bindgen(js_name = "getAnnotations")]
+    pub fn get_annotations(&mut self, page_index: usize) -> Result<JsValue, JsValue> {
+        let annotations = self
+            .inner
+            .get_annotations(page_index)
+            .map_err(|e| JsValue::from_str(&format!("Failed to get annotations: {}", e)))?;
+
+        let result: Vec<serde_json::Value> = annotations
+            .iter()
+            .map(|ann| {
+                let mut obj = serde_json::Map::new();
+
+                if let Some(ref subtype) = ann.subtype {
+                    obj.insert("subtype".into(), serde_json::Value::from(subtype.as_str()));
+                }
+                if let Some(ref contents) = ann.contents {
+                    obj.insert("contents".into(), serde_json::Value::from(contents.as_str()));
+                }
+                if let Some(rect) = ann.rect {
+                    obj.insert(
+                        "rect".into(),
+                        serde_json::json!([rect[0], rect[1], rect[2], rect[3]]),
+                    );
+                }
+                if let Some(ref author) = ann.author {
+                    obj.insert("author".into(), serde_json::Value::from(author.as_str()));
+                }
+                if let Some(ref date) = ann.creation_date {
+                    obj.insert("creation_date".into(), serde_json::Value::from(date.as_str()));
+                }
+                if let Some(ref date) = ann.modification_date {
+                    obj.insert(
+                        "modification_date".into(),
+                        serde_json::Value::from(date.as_str()),
+                    );
+                }
+                if let Some(ref subject) = ann.subject {
+                    obj.insert("subject".into(), serde_json::Value::from(subject.as_str()));
+                }
+                if let Some(ref color) = ann.color {
+                    if color.len() >= 3 {
+                        obj.insert("color".into(), serde_json::json!([color[0], color[1], color[2]]));
+                    }
+                }
+                if let Some(opacity) = ann.opacity {
+                    obj.insert("opacity".into(), serde_json::Value::from(opacity));
+                }
+                if let Some(ref ft) = ann.field_type {
+                    obj.insert("field_type".into(), serde_json::Value::from(format!("{:?}", ft)));
+                }
+                if let Some(ref name) = ann.field_name {
+                    obj.insert("field_name".into(), serde_json::Value::from(name.as_str()));
+                }
+                if let Some(ref val) = ann.field_value {
+                    obj.insert("field_value".into(), serde_json::Value::from(val.as_str()));
+                }
+                if let Some(ref action) = ann.action {
+                    if let crate::annotations::LinkAction::Uri(ref uri) = action {
+                        obj.insert("action_uri".into(), serde_json::Value::from(uri.as_str()));
+                    }
+                }
+
+                serde_json::Value::Object(obj)
+            })
+            .collect();
+
+        serde_wasm_bindgen::to_value(&result)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Extract vector paths (lines, curves, shapes) from a page.
+    ///
+    /// @param page_index - Zero-based page number
+    /// @returns Array of path objects with bbox, stroke_color, fill_color, etc.
+    #[wasm_bindgen(js_name = "extractPaths")]
+    pub fn extract_paths(&mut self, page_index: usize) -> Result<JsValue, JsValue> {
+        let paths = self
+            .inner
+            .extract_paths(page_index)
+            .map_err(|e| JsValue::from_str(&format!("Failed to extract paths: {}", e)))?;
+
+        let result: Vec<serde_json::Value> = paths
+            .iter()
+            .map(|path| {
+                let mut obj = serde_json::Map::new();
+
+                obj.insert(
+                    "bbox".into(),
+                    serde_json::json!({
+                        "x": path.bbox.x,
+                        "y": path.bbox.y,
+                        "width": path.bbox.width,
+                        "height": path.bbox.height
+                    }),
+                );
+                obj.insert("stroke_width".into(), serde_json::Value::from(path.stroke_width));
+
+                if let Some(ref color) = path.stroke_color {
+                    obj.insert(
+                        "stroke_color".into(),
+                        serde_json::json!({"r": color.r, "g": color.g, "b": color.b}),
+                    );
+                }
+                if let Some(ref color) = path.fill_color {
+                    obj.insert(
+                        "fill_color".into(),
+                        serde_json::json!({"r": color.r, "g": color.g, "b": color.b}),
+                    );
+                }
+
+                let cap_str = match path.line_cap {
+                    crate::elements::LineCap::Butt => "butt",
+                    crate::elements::LineCap::Round => "round",
+                    crate::elements::LineCap::Square => "square",
+                };
+                obj.insert("line_cap".into(), serde_json::Value::from(cap_str));
+
+                let join_str = match path.line_join {
+                    crate::elements::LineJoin::Miter => "miter",
+                    crate::elements::LineJoin::Round => "round",
+                    crate::elements::LineJoin::Bevel => "bevel",
+                };
+                obj.insert("line_join".into(), serde_json::Value::from(join_str));
+
+                obj.insert(
+                    "operations_count".into(),
+                    serde_json::Value::from(path.operations.len()),
+                );
+
+                serde_json::Value::Object(obj)
+            })
+            .collect();
+
+        serde_wasm_bindgen::to_value(&result)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    // ========================================================================
     // Group 7: Editing — Metadata
     // ========================================================================
 
@@ -880,6 +1046,39 @@ impl WasmPdf {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Convert OutlineItem tree to JSON for WASM serialization.
+fn outline_to_json(items: &[crate::outline::OutlineItem]) -> Vec<serde_json::Value> {
+    items
+        .iter()
+        .map(|item| {
+            let mut obj = serde_json::Map::new();
+            obj.insert("title".into(), serde_json::Value::from(item.title.as_str()));
+
+            match &item.dest {
+                Some(crate::outline::Destination::PageIndex(idx)) => {
+                    obj.insert("page".into(), serde_json::Value::from(*idx));
+                }
+                Some(crate::outline::Destination::Named(name)) => {
+                    obj.insert("page".into(), serde_json::Value::Null);
+                    obj.insert("dest_name".into(), serde_json::Value::from(name.as_str()));
+                }
+                None => {
+                    obj.insert("page".into(), serde_json::Value::Null);
+                }
+            }
+
+            let children = outline_to_json(&item.children);
+            obj.insert("children".into(), serde_json::Value::from(children));
+
+            serde_json::Value::Object(obj)
+        })
+        .collect()
+}
+
+// ============================================================================
 // Unit Tests
 // ============================================================================
 //
@@ -1161,6 +1360,50 @@ mod tests {
     fn test_extract_images_invalid_page() {
         let mut doc = doc_from_text("Hello");
         let result = doc.extract_images(999);
+        assert!(result.is_err());
+    }
+
+    // ========================================================================
+    // Group: Document Structure (serde_wasm_bindgen — wasm32 only)
+    // ========================================================================
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_get_outline_ok() {
+        let mut doc = doc_from_text("No outline here");
+        let result = doc.get_outline();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_get_annotations_ok() {
+        let mut doc = doc_from_text("No annotations here");
+        let result = doc.get_annotations(0);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_get_annotations_invalid_page() {
+        let mut doc = doc_from_text("Hello");
+        let result = doc.get_annotations(999);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_extract_paths_ok() {
+        let mut doc = doc_from_text("No paths here");
+        let result = doc.extract_paths(0);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_extract_paths_invalid_page() {
+        let mut doc = doc_from_text("Hello");
+        let result = doc.extract_paths(999);
         assert!(result.is_err());
     }
 

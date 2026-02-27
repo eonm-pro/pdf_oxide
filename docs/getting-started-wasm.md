@@ -511,6 +511,14 @@ try {
 | `.extractImages(page)` | `Array` | Image metadata (no raw bytes) |
 | `.pageImages(page)` | `Array` | Image names and bounds |
 
+**Document Structure:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `.getOutline()` | `Array\|null` | Document bookmarks / table of contents |
+| `.getAnnotations(page)` | `Array` | Annotation metadata (type, rect, contents, etc.) |
+| `.extractPaths(page)` | `Array` | Vector paths (lines, curves, shapes) |
+
 **Editing:**
 
 | Method | Returns | Description |

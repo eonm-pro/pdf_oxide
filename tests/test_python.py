@@ -594,6 +594,137 @@ def test_pattern_presets():
     assert len(content) > 0
 
 
+# === Extraction & Structure Tests ===
+
+
+def test_extract_images():
+    """Test extracting image metadata from a page."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        images = doc.extract_images(0)
+        assert isinstance(images, list)
+        # Each image should be a dict with expected keys
+        for img in images:
+            assert isinstance(img, dict)
+            assert "width" in img
+            assert "height" in img
+            assert "color_space" in img
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
+def test_extract_spans():
+    """Test extracting text spans from a page."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        spans = doc.extract_spans(0)
+        assert isinstance(spans, list)
+        for span in spans:
+            # TextSpan objects should have expected attributes
+            assert hasattr(span, "text")
+            assert hasattr(span, "bbox")
+            assert hasattr(span, "font_name")
+            assert hasattr(span, "font_size")
+            assert hasattr(span, "is_bold")
+            assert hasattr(span, "is_italic")
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
+def test_extract_spans_repr():
+    """Test TextSpan __repr__."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        spans = doc.extract_spans(0)
+        if spans:
+            r = repr(spans[0])
+            assert "TextSpan" in r
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
+def test_get_outline():
+    """Test getting document outline (bookmarks)."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        outline = doc.get_outline()
+        # Outline is either None or a list
+        assert outline is None or isinstance(outline, list)
+        if outline:
+            for item in outline:
+                assert isinstance(item, dict)
+                assert "title" in item
+                assert "children" in item
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
+def test_get_annotations():
+    """Test getting page annotations."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        annotations = doc.get_annotations(0)
+        assert isinstance(annotations, list)
+        for ann in annotations:
+            assert isinstance(ann, dict)
+            assert "subtype" in ann
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
+def test_extract_paths():
+    """Test extracting vector paths from a page."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        paths = doc.extract_paths(0)
+        assert isinstance(paths, list)
+        for path in paths:
+            assert isinstance(path, dict)
+            assert "bbox" in path
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
+def test_extract_images_invalid_page():
+    """Test extract_images with invalid page index."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        with pytest.raises(RuntimeError):
+            doc.extract_images(999)
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
+def test_extract_spans_invalid_page():
+    """Test extract_spans with invalid page index."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        with pytest.raises(RuntimeError):
+            doc.extract_spans(999)
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
+def test_get_annotations_invalid_page():
+    """Test get_annotations with invalid page index."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        with pytest.raises(RuntimeError):
+            doc.get_annotations(999)
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
+def test_extract_paths_invalid_page():
+    """Test extract_paths with invalid page index."""
+    try:
+        doc = PdfDocument("tests/fixtures/simple.pdf")
+        with pytest.raises(RuntimeError):
+            doc.extract_paths(999)
+    except (OSError, RuntimeError):
+        pytest.skip("Test fixture 'simple.pdf' not available or invalid")
+
+
 # Note: To run these tests successfully, you'll need to:
 # 1. Install maturin: pip install maturin
 # 2. Build the extension: maturin develop

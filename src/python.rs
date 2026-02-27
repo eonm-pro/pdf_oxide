@@ -1509,6 +1509,319 @@ impl PyPdfDocument {
         Ok(py_list.into())
     }
 
+    // ========================================================================
+    // Structured Extraction: Images, Spans, Paths
+    // ========================================================================
+
+    /// Extract image metadata from a page.
+    ///
+    /// Returns metadata for each image on the page (width, height, color space, etc.).
+    /// Does NOT return raw image bytes — use `extract_images_to_files()` for that.
+    ///
+    /// Args:
+    ///     page (int): Page index (0-based)
+    ///
+    /// Returns:
+    ///     list[dict]: List of image metadata dictionaries with keys:
+    ///         - width (int): Image width in pixels
+    ///         - height (int): Image height in pixels
+    ///         - color_space (str): Color space (e.g., "DeviceRGB", "DeviceGray")
+    ///         - bits_per_component (int): Bits per color component
+    ///         - bbox (tuple | None): Bounding box as (x, y, width, height), or None
+    ///
+    /// Raises:
+    ///     RuntimeError: If image extraction fails
+    ///
+    /// Example:
+    ///     >>> doc = PdfDocument("sample.pdf")
+    ///     >>> images = doc.extract_images(0)
+    ///     >>> for img in images:
+    ///     ...     print(f"{img['width']}x{img['height']} {img['color_space']}")
+    fn extract_images(&mut self, py: Python<'_>, page: usize) -> PyResult<Py<PyAny>> {
+        let images = self
+            .inner
+            .extract_images(page)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to extract images: {}", e)))?;
+
+        let py_list = pyo3::types::PyList::empty(py);
+        for img in &images {
+            let dict = pyo3::types::PyDict::new(py);
+            dict.set_item("width", img.width())?;
+            dict.set_item("height", img.height())?;
+            dict.set_item("color_space", format!("{:?}", img.color_space()))?;
+            dict.set_item("bits_per_component", img.bits_per_component())?;
+            if let Some(bbox) = img.bbox() {
+                dict.set_item("bbox", (bbox.x, bbox.y, bbox.width, bbox.height))?;
+            } else {
+                dict.set_item("bbox", py.None())?;
+            }
+            py_list.append(dict)?;
+        }
+        Ok(py_list.into())
+    }
+
+    /// Extract text spans from a page.
+    ///
+    /// Spans are groups of characters that share the same font and style.
+    /// This is the recommended method for structured text extraction.
+    ///
+    /// Args:
+    ///     page (int): Page index (0-based)
+    ///
+    /// Returns:
+    ///     list[TextSpan]: List of text spans with position and style info
+    ///
+    /// Raises:
+    ///     RuntimeError: If span extraction fails
+    ///
+    /// Example:
+    ///     >>> doc = PdfDocument("sample.pdf")
+    ///     >>> spans = doc.extract_spans(0)
+    ///     >>> for span in spans:
+    ///     ...     print(f"'{span.text}' font={span.font_name} size={span.font_size}")
+    fn extract_spans(&mut self, page: usize) -> PyResult<Vec<PyTextSpan>> {
+        self.inner
+            .extract_spans(page)
+            .map(|spans| {
+                spans
+                    .into_iter()
+                    .map(|s| PyTextSpan { inner: s })
+                    .collect()
+            })
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to extract spans: {}", e)))
+    }
+
+    /// Get the document outline (bookmarks / table of contents).
+    ///
+    /// Returns:
+    ///     list[dict] | None: Outline tree as nested dicts, or None if no outline.
+    ///         Each dict has keys:
+    ///         - title (str): Bookmark title
+    ///         - page (int | None): Target page index (0-based), or None
+    ///         - children (list[dict]): Child bookmarks (same structure)
+    ///
+    /// Raises:
+    ///     RuntimeError: If outline extraction fails
+    ///
+    /// Example:
+    ///     >>> doc = PdfDocument("book.pdf")
+    ///     >>> outline = doc.get_outline()
+    ///     >>> if outline:
+    ///     ...     for item in outline:
+    ///     ...         print(f"{item['title']} -> page {item['page']}")
+    fn get_outline(&mut self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        let outline = self
+            .inner
+            .get_outline()
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get outline: {}", e)))?;
+
+        match outline {
+            None => Ok(None),
+            Some(items) => {
+                let result = outline_items_to_py(py, &items)?;
+                Ok(Some(result))
+            }
+        }
+    }
+
+    /// Get annotations from a page.
+    ///
+    /// Returns annotation metadata including type, position, content, and form field info.
+    ///
+    /// Args:
+    ///     page (int): Page index (0-based)
+    ///
+    /// Returns:
+    ///     list[dict]: List of annotation dictionaries. Keys vary by type but may include:
+    ///         - subtype (str): Annotation type (e.g., "Text", "Link", "Highlight")
+    ///         - rect (tuple | None): Bounding rectangle as (x1, y1, x2, y2)
+    ///         - contents (str | None): Text contents
+    ///         - author (str | None): Author name
+    ///         - creation_date (str | None): Creation date
+    ///         - modification_date (str | None): Modification date
+    ///         - subject (str | None): Subject
+    ///         - color (tuple | None): Color as (r, g, b) tuple
+    ///         - opacity (float | None): Opacity (0.0 to 1.0)
+    ///         - field_type (str | None): Form field type if widget annotation
+    ///         - field_name (str | None): Form field name
+    ///         - field_value (str | None): Form field value
+    ///         - action_uri (str | None): URI if link annotation
+    ///
+    /// Raises:
+    ///     RuntimeError: If annotation extraction fails
+    ///
+    /// Example:
+    ///     >>> doc = PdfDocument("annotated.pdf")
+    ///     >>> annotations = doc.get_annotations(0)
+    ///     >>> for ann in annotations:
+    ///     ...     print(f"{ann['subtype']}: {ann.get('contents', '')}")
+    fn get_annotations(&mut self, py: Python<'_>, page: usize) -> PyResult<Py<PyAny>> {
+        let annotations = self
+            .inner
+            .get_annotations(page)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get annotations: {}", e)))?;
+
+        let py_list = pyo3::types::PyList::empty(py);
+        for ann in &annotations {
+            let dict = pyo3::types::PyDict::new(py);
+
+            if let Some(ref subtype) = ann.subtype {
+                dict.set_item("subtype", subtype)?;
+            }
+            if let Some(ref contents) = ann.contents {
+                dict.set_item("contents", contents)?;
+            }
+            if let Some(rect) = ann.rect {
+                dict.set_item("rect", (rect[0], rect[1], rect[2], rect[3]))?;
+            }
+            if let Some(ref author) = ann.author {
+                dict.set_item("author", author)?;
+            }
+            if let Some(ref date) = ann.creation_date {
+                dict.set_item("creation_date", date)?;
+            }
+            if let Some(ref date) = ann.modification_date {
+                dict.set_item("modification_date", date)?;
+            }
+            if let Some(ref subject) = ann.subject {
+                dict.set_item("subject", subject)?;
+            }
+            if let Some(ref color) = ann.color {
+                if color.len() >= 3 {
+                    dict.set_item("color", (color[0], color[1], color[2]))?;
+                }
+            }
+            if let Some(opacity) = ann.opacity {
+                dict.set_item("opacity", opacity)?;
+            }
+            if let Some(ref ft) = ann.field_type {
+                dict.set_item("field_type", format!("{:?}", ft))?;
+            }
+            if let Some(ref name) = ann.field_name {
+                dict.set_item("field_name", name)?;
+            }
+            if let Some(ref val) = ann.field_value {
+                dict.set_item("field_value", val)?;
+            }
+            // Extract URI from link action
+            if let Some(ref action) = ann.action {
+                if let crate::annotations::LinkAction::Uri(ref uri) = action {
+                    dict.set_item("action_uri", uri)?;
+                }
+            }
+
+            py_list.append(dict)?;
+        }
+        Ok(py_list.into())
+    }
+
+    /// Extract vector paths (lines, curves, shapes) from a page.
+    ///
+    /// Args:
+    ///     page (int): Page index (0-based)
+    ///
+    /// Returns:
+    ///     list[dict]: List of path dictionaries with keys:
+    ///         - bbox (tuple): Bounding box as (x, y, width, height)
+    ///         - stroke_width (float): Stroke line width
+    ///         - stroke_color (tuple | None): Stroke color as (r, g, b), or None
+    ///         - fill_color (tuple | None): Fill color as (r, g, b), or None
+    ///         - line_cap (str): Line cap style ("butt", "round", "square")
+    ///         - line_join (str): Line join style ("miter", "round", "bevel")
+    ///         - operations_count (int): Number of path operations
+    ///
+    /// Raises:
+    ///     RuntimeError: If path extraction fails
+    ///
+    /// Example:
+    ///     >>> doc = PdfDocument("vector.pdf")
+    ///     >>> paths = doc.extract_paths(0)
+    ///     >>> for p in paths:
+    ///     ...     print(f"Path at {p['bbox']}, stroke={p['stroke_color']}")
+    fn extract_paths(&mut self, py: Python<'_>, page: usize) -> PyResult<Py<PyAny>> {
+        let paths = self
+            .inner
+            .extract_paths(page)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to extract paths: {}", e)))?;
+
+        let py_list = pyo3::types::PyList::empty(py);
+        for path in &paths {
+            let dict = pyo3::types::PyDict::new(py);
+            dict.set_item(
+                "bbox",
+                (path.bbox.x, path.bbox.y, path.bbox.width, path.bbox.height),
+            )?;
+            dict.set_item("stroke_width", path.stroke_width)?;
+
+            if let Some(ref color) = path.stroke_color {
+                dict.set_item("stroke_color", (color.r, color.g, color.b))?;
+            } else {
+                dict.set_item("stroke_color", py.None())?;
+            }
+
+            if let Some(ref color) = path.fill_color {
+                dict.set_item("fill_color", (color.r, color.g, color.b))?;
+            } else {
+                dict.set_item("fill_color", py.None())?;
+            }
+
+            let cap_str = match path.line_cap {
+                crate::elements::LineCap::Butt => "butt",
+                crate::elements::LineCap::Round => "round",
+                crate::elements::LineCap::Square => "square",
+            };
+            dict.set_item("line_cap", cap_str)?;
+
+            let join_str = match path.line_join {
+                crate::elements::LineJoin::Miter => "miter",
+                crate::elements::LineJoin::Round => "round",
+                crate::elements::LineJoin::Bevel => "bevel",
+            };
+            dict.set_item("line_join", join_str)?;
+
+            dict.set_item("operations_count", path.operations.len())?;
+
+            py_list.append(dict)?;
+        }
+        Ok(py_list.into())
+    }
+
+    // ========================================================================
+    // OCR Text Extraction (feature-gated)
+    // ========================================================================
+
+    /// Extract text from a page using OCR (optical character recognition).
+    ///
+    /// Falls back to native text extraction when the page has digital text.
+    /// Requires the `ocr` feature to be enabled at build time.
+    ///
+    /// Args:
+    ///     page (int): Page index (0-based)
+    ///     engine (OcrEngine | None): OCR engine instance. Required for scanned pages.
+    ///
+    /// Returns:
+    ///     str: Extracted text from the page
+    ///
+    /// Raises:
+    ///     RuntimeError: If text extraction fails
+    ///
+    /// Example:
+    ///     >>> engine = OcrEngine("det.onnx", "rec.onnx", "dict.txt")
+    ///     >>> text = doc.extract_text_ocr(0, engine)
+    #[cfg(feature = "ocr")]
+    #[pyo3(signature = (page, engine=None))]
+    fn extract_text_ocr(
+        &mut self,
+        page: usize,
+        engine: Option<&PyOcrEngine>,
+    ) -> PyResult<String> {
+        let ocr_engine = engine.map(|e| &e.inner);
+        let options = crate::ocr::OcrExtractOptions::default();
+        self.inner
+            .extract_text_with_ocr(page, ocr_engine, options)
+            .map_err(|e| PyRuntimeError::new_err(format!("OCR extraction failed: {}", e)))
+    }
+
     /// String representation of the document.
     ///
     /// Returns:
@@ -2631,6 +2944,243 @@ impl PyTextChar {
     }
 }
 
+// === Text Span Type ===
+
+/// A text span with position and style information.
+///
+/// Spans are groups of characters that share the same font and style.
+/// Use `PdfDocument.extract_spans()` to get a list of these.
+///
+/// # Attributes
+///
+/// - `text` (str): The text content
+/// - `bbox` (tuple): Bounding box as (x, y, width, height)
+/// - `font_name` (str): Font family name
+/// - `font_size` (float): Font size in points
+/// - `is_bold` (bool): Whether the text is bold
+/// - `is_italic` (bool): Whether the text is italic
+/// - `color` (tuple): RGB color as (r, g, b) with values 0.0-1.0
+#[pyclass(name = "TextSpan")]
+#[derive(Clone)]
+pub struct PyTextSpan {
+    inner: crate::layout::TextSpan,
+}
+
+#[pymethods]
+impl PyTextSpan {
+    /// The text content of the span.
+    #[getter]
+    fn text(&self) -> &str {
+        &self.inner.text
+    }
+
+    /// Bounding box as (x, y, width, height).
+    #[getter]
+    fn bbox(&self) -> (f32, f32, f32, f32) {
+        (
+            self.inner.bbox.x,
+            self.inner.bbox.y,
+            self.inner.bbox.width,
+            self.inner.bbox.height,
+        )
+    }
+
+    /// Font name/family.
+    #[getter]
+    fn font_name(&self) -> &str {
+        &self.inner.font_name
+    }
+
+    /// Font size in points.
+    #[getter]
+    fn font_size(&self) -> f32 {
+        self.inner.font_size
+    }
+
+    /// Whether the text is bold (font weight >= 700).
+    #[getter]
+    fn is_bold(&self) -> bool {
+        self.inner.font_weight as u16 >= 700
+    }
+
+    /// Whether the text is italic.
+    #[getter]
+    fn is_italic(&self) -> bool {
+        self.inner.is_italic
+    }
+
+    /// Text color as (r, g, b) with values 0.0-1.0.
+    #[getter]
+    fn color(&self) -> (f32, f32, f32) {
+        (self.inner.color.r, self.inner.color.g, self.inner.color.b)
+    }
+
+    fn __repr__(&self) -> String {
+        let preview = if self.inner.text.len() > 30 {
+            format!("{}...", &self.inner.text[..30])
+        } else {
+            self.inner.text.clone()
+        };
+        format!(
+            "TextSpan({:?}, font={}, size={:.1})",
+            preview, self.inner.font_name, self.inner.font_size
+        )
+    }
+}
+
+// === Outline Helper ===
+
+/// Convert OutlineItem tree to Python nested dicts.
+fn outline_items_to_py(py: Python<'_>, items: &[crate::outline::OutlineItem]) -> PyResult<Py<PyAny>> {
+    let py_list = pyo3::types::PyList::empty(py);
+    for item in items {
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("title", &item.title)?;
+
+        match &item.dest {
+            Some(crate::outline::Destination::PageIndex(idx)) => {
+                dict.set_item("page", *idx)?;
+            }
+            Some(crate::outline::Destination::Named(name)) => {
+                dict.set_item("page", py.None())?;
+                dict.set_item("dest_name", name)?;
+            }
+            None => {
+                dict.set_item("page", py.None())?;
+            }
+        }
+
+        let children = outline_items_to_py(py, &item.children)?;
+        dict.set_item("children", children)?;
+
+        py_list.append(dict)?;
+    }
+    Ok(py_list.into())
+}
+
+// === OCR Types (feature-gated) ===
+
+/// OCR engine for extracting text from scanned PDF pages.
+///
+/// Requires the `ocr` feature to be enabled at build time.
+///
+/// Example:
+///     >>> engine = OcrEngine("det.onnx", "rec.onnx", "dict.txt")
+///     >>> text = doc.extract_text_ocr(0, engine)
+#[cfg(feature = "ocr")]
+#[pyclass(name = "OcrEngine", unsendable)]
+pub struct PyOcrEngine {
+    inner: crate::ocr::OcrEngine,
+}
+
+#[cfg(feature = "ocr")]
+#[pymethods]
+impl PyOcrEngine {
+    /// Create a new OCR engine.
+    ///
+    /// Args:
+    ///     det_model_path (str): Path to the text detection ONNX model
+    ///     rec_model_path (str): Path to the text recognition ONNX model
+    ///     dict_path (str): Path to the character dictionary file
+    ///     config (OcrConfig | None): Optional OCR configuration
+    ///
+    /// Raises:
+    ///     RuntimeError: If model loading fails
+    ///
+    /// Example:
+    ///     >>> engine = OcrEngine("det.onnx", "rec.onnx", "dict.txt")
+    ///     >>> engine_custom = OcrEngine("det.onnx", "rec.onnx", "dict.txt",
+    ///     ...     OcrConfig(det_threshold=0.5))
+    #[new]
+    #[pyo3(signature = (det_model_path, rec_model_path, dict_path, config=None))]
+    fn new(
+        det_model_path: &str,
+        rec_model_path: &str,
+        dict_path: &str,
+        config: Option<&PyOcrConfig>,
+    ) -> PyResult<Self> {
+        let ocr_config = config
+            .map(|c| c.inner.clone())
+            .unwrap_or_default();
+        let engine = crate::ocr::OcrEngine::new(det_model_path, rec_model_path, dict_path, ocr_config)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to create OCR engine: {}", e)))?;
+        Ok(PyOcrEngine { inner: engine })
+    }
+
+    fn __repr__(&self) -> String {
+        "OcrEngine(...)".to_string()
+    }
+}
+
+/// Configuration for OCR processing.
+///
+/// All parameters are optional and have sensible defaults.
+///
+/// Example:
+///     >>> config = OcrConfig(det_threshold=0.5, num_threads=8)
+///     >>> engine = OcrEngine("det.onnx", "rec.onnx", "dict.txt", config)
+#[cfg(feature = "ocr")]
+#[pyclass(name = "OcrConfig")]
+#[derive(Clone)]
+pub struct PyOcrConfig {
+    inner: crate::ocr::OcrConfig,
+}
+
+#[cfg(feature = "ocr")]
+#[pymethods]
+impl PyOcrConfig {
+    /// Create OCR configuration with optional parameters.
+    ///
+    /// Args:
+    ///     det_threshold (float): Detection threshold (0.0-1.0, default: 0.3)
+    ///     box_threshold (float): Box threshold (0.0-1.0, default: 0.6)
+    ///     rec_threshold (float): Recognition threshold (0.0-1.0, default: 0.5)
+    ///     num_threads (int): Number of threads (default: 4)
+    ///     max_candidates (int): Max text candidates (default: 1000)
+    ///     use_v5 (bool): Use PP-OCRv5 optimized settings (default: False).
+    ///         When True, uses high-resolution input for detection (up to 4000px)
+    ///         which is required for PP-OCRv5 server models.
+    #[new]
+    #[pyo3(signature = (det_threshold=None, box_threshold=None, rec_threshold=None, num_threads=None, max_candidates=None, use_v5=false))]
+    fn new(
+        det_threshold: Option<f32>,
+        box_threshold: Option<f32>,
+        rec_threshold: Option<f32>,
+        num_threads: Option<usize>,
+        max_candidates: Option<usize>,
+        use_v5: bool,
+    ) -> Self {
+        let mut config = if use_v5 {
+            crate::ocr::OcrConfig::v5()
+        } else {
+            crate::ocr::OcrConfig::default()
+        };
+        if let Some(v) = det_threshold {
+            config.det_threshold = v;
+        }
+        if let Some(v) = box_threshold {
+            config.box_threshold = v;
+        }
+        if let Some(v) = rec_threshold {
+            config.rec_threshold = v;
+        }
+        if let Some(v) = num_threads {
+            config.num_threads = v;
+        }
+        if let Some(v) = max_candidates {
+            config.max_candidates = v;
+        }
+        PyOcrConfig { inner: config }
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "OcrConfig(det_threshold={}, rec_threshold={}, threads={})",
+            self.inner.det_threshold, self.inner.rec_threshold, self.inner.num_threads
+        )
+    }
+}
+
 // === Advanced Graphics Types ===
 
 use crate::layout::{Color as RustColor, FontWeight, TextChar as RustTextChar};
@@ -3312,6 +3862,14 @@ fn pdf_oxide(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Text extraction types
     m.add_class::<PyTextChar>()?;
+    m.add_class::<PyTextSpan>()?;
+
+    // OCR types (optional, requires ocr feature)
+    #[cfg(feature = "ocr")]
+    {
+        m.add_class::<PyOcrEngine>()?;
+        m.add_class::<PyOcrConfig>()?;
+    }
 
     // Advanced graphics
     m.add_class::<PyColor>()?;
