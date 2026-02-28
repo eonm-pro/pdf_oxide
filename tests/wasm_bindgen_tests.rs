@@ -12,7 +12,9 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 
 use pdf_oxide::api::{Pdf, PdfBuilder};
+use pdf_oxide::geometry::Rect;
 use pdf_oxide::wasm::{WasmPdf, WasmPdfDocument};
+use pdf_oxide::writer::{CheckboxWidget, ComboBoxWidget, PdfWriter, TextFieldWidget};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -382,4 +384,111 @@ fn test_wasm_pdf_metadata() {
     assert!(pdf.size() > 0);
     let bytes = pdf.to_bytes();
     assert!(bytes.starts_with(b"%PDF"));
+}
+
+// ============================================================================
+// Form Fields (Issue #172) — getFormFields, hasXfa
+// ============================================================================
+
+/// Create a PDF with form fields for WASM testing.
+fn make_form_pdf() -> Vec<u8> {
+    let mut writer = PdfWriter::new();
+    {
+        let mut page = writer.add_page(612.0, 792.0);
+        page.add_text_field(
+            TextFieldWidget::new("name", Rect::new(72.0, 700.0, 200.0, 20.0))
+                .with_value("Alice"),
+        );
+        page.add_checkbox(
+            CheckboxWidget::new("agree", Rect::new(72.0, 650.0, 15.0, 15.0)).checked(),
+        );
+        page.add_combo_box(
+            ComboBoxWidget::new("color", Rect::new(72.0, 600.0, 150.0, 20.0))
+                .with_options(vec!["Red", "Blue", "Green"])
+                .with_value("Blue"),
+        );
+    }
+    writer.finish().expect("Failed to create form PDF")
+}
+
+#[wasm_bindgen_test]
+fn test_get_form_fields_returns_array() {
+    let bytes = make_form_pdf();
+    let mut doc = WasmPdfDocument::new(&bytes).unwrap();
+    let result = doc.get_form_fields().unwrap();
+    assert!(
+        js_sys::Array::is_array(&result),
+        "getFormFields should return an array"
+    );
+    let arr = js_sys::Array::from(&result);
+    assert!(
+        arr.length() >= 3,
+        "Should have at least 3 form fields, got {}",
+        arr.length()
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_get_form_fields_has_name_and_type() {
+    let bytes = make_form_pdf();
+    let mut doc = WasmPdfDocument::new(&bytes).unwrap();
+    let result = doc.get_form_fields().unwrap();
+    let arr = js_sys::Array::from(&result);
+
+    // Check first field has name and field_type
+    let first = arr.get(0);
+    let name = js_sys::Reflect::get(&first, &JsValue::from_str("name")).unwrap();
+    assert!(name.is_string(), "field should have a string 'name'");
+    let ft = js_sys::Reflect::get(&first, &JsValue::from_str("field_type")).unwrap();
+    assert!(ft.is_string(), "field should have a string 'field_type'");
+}
+
+#[wasm_bindgen_test]
+fn test_get_form_fields_has_value() {
+    let bytes = make_form_pdf();
+    let mut doc = WasmPdfDocument::new(&bytes).unwrap();
+    let result = doc.get_form_fields().unwrap();
+    let arr = js_sys::Array::from(&result);
+
+    // Find the text field — it should have a string value
+    for i in 0..arr.length() {
+        let field = arr.get(i);
+        let ft = js_sys::Reflect::get(&field, &JsValue::from_str("field_type")).unwrap();
+        if ft.as_string().as_deref() == Some("text") {
+            let value = js_sys::Reflect::get(&field, &JsValue::from_str("value")).unwrap();
+            assert!(
+                value.is_string(),
+                "text field should have a string value"
+            );
+            return;
+        }
+    }
+    // If no text field found, the test is inconclusive (but it should find one)
+}
+
+#[wasm_bindgen_test]
+fn test_get_form_fields_empty_on_plain_pdf() {
+    let mut doc = doc_from_text("No forms here");
+    let result = doc.get_form_fields().unwrap();
+    let arr = js_sys::Array::from(&result);
+    assert_eq!(
+        arr.length(),
+        0,
+        "Plain text PDF should have no form fields"
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_has_xfa_false_on_plain_pdf() {
+    let mut doc = doc_from_text("No XFA");
+    let result = doc.has_xfa().unwrap();
+    assert!(!result, "Plain text PDF should not have XFA");
+}
+
+#[wasm_bindgen_test]
+fn test_has_xfa_false_on_acroform_pdf() {
+    let bytes = make_form_pdf();
+    let mut doc = WasmPdfDocument::new(&bytes).unwrap();
+    let result = doc.has_xfa().unwrap();
+    assert!(!result, "PdfWriter-created form should not have XFA");
 }

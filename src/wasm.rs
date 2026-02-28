@@ -167,6 +167,7 @@ impl WasmPdfDocument {
         page_index: usize,
         detect_headings: Option<bool>,
         include_images: Option<bool>,
+        include_form_fields: Option<bool>,
     ) -> Result<String, JsValue> {
         let mut opts = ConversionOptions::default();
         if let Some(dh) = detect_headings {
@@ -174,6 +175,9 @@ impl WasmPdfDocument {
         }
         if let Some(ii) = include_images {
             opts.include_images = ii;
+        }
+        if let Some(iff) = include_form_fields {
+            opts.include_form_fields = iff;
         }
         self.inner
             .to_markdown(page_index, &opts)
@@ -186,6 +190,7 @@ impl WasmPdfDocument {
         &mut self,
         detect_headings: Option<bool>,
         include_images: Option<bool>,
+        include_form_fields: Option<bool>,
     ) -> Result<String, JsValue> {
         let mut opts = ConversionOptions::default();
         if let Some(dh) = detect_headings {
@@ -193,6 +198,9 @@ impl WasmPdfDocument {
         }
         if let Some(ii) = include_images {
             opts.include_images = ii;
+        }
+        if let Some(iff) = include_form_fields {
+            opts.include_form_fields = iff;
         }
         self.inner
             .to_markdown_all(&opts)
@@ -210,6 +218,7 @@ impl WasmPdfDocument {
         page_index: usize,
         preserve_layout: Option<bool>,
         detect_headings: Option<bool>,
+        include_form_fields: Option<bool>,
     ) -> Result<String, JsValue> {
         let mut opts = ConversionOptions::default();
         if let Some(pl) = preserve_layout {
@@ -217,6 +226,9 @@ impl WasmPdfDocument {
         }
         if let Some(dh) = detect_headings {
             opts.detect_headings = dh;
+        }
+        if let Some(iff) = include_form_fields {
+            opts.include_form_fields = iff;
         }
         self.inner
             .to_html(page_index, &opts)
@@ -229,6 +241,7 @@ impl WasmPdfDocument {
         &mut self,
         preserve_layout: Option<bool>,
         detect_headings: Option<bool>,
+        include_form_fields: Option<bool>,
     ) -> Result<String, JsValue> {
         let mut opts = ConversionOptions::default();
         if let Some(pl) = preserve_layout {
@@ -236,6 +249,9 @@ impl WasmPdfDocument {
         }
         if let Some(dh) = detect_headings {
             opts.detect_headings = dh;
+        }
+        if let Some(iff) = include_form_fields {
+            opts.include_form_fields = iff;
         }
         self.inner
             .to_html_all(&opts)
@@ -562,6 +578,139 @@ impl WasmPdfDocument {
 
         serde_wasm_bindgen::to_value(&result)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    // ========================================================================
+    // Group 6c: Form Fields
+    // ========================================================================
+
+    /// Get all form fields from the document.
+    ///
+    /// Returns an array of form field objects, each with:
+    /// - name: Full qualified field name
+    /// - field_type: "text", "button", "choice", "signature", or "unknown"
+    /// - value: string, boolean, array of strings, or null
+    /// - tooltip: string or null
+    /// - bounds: [x1, y1, x2, y2] or null
+    /// - flags: number or null
+    /// - max_length: number or null
+    /// - is_readonly: boolean
+    /// - is_required: boolean
+    #[wasm_bindgen(js_name = "getFormFields")]
+    pub fn get_form_fields(&mut self) -> Result<JsValue, JsValue> {
+        use crate::extractors::forms::{FieldType, FieldValue, FormExtractor, field_flags};
+
+        let fields = FormExtractor::extract_fields(&mut self.inner)
+            .map_err(|e| JsValue::from_str(&format!("Failed to extract form fields: {}", e)))?;
+
+        let result: Vec<serde_json::Value> = fields
+            .iter()
+            .map(|field| {
+                let mut obj = serde_json::Map::new();
+
+                obj.insert("name".into(), serde_json::Value::from(field.full_name.as_str()));
+
+                let ft_str = match &field.field_type {
+                    FieldType::Text => "text",
+                    FieldType::Button => "button",
+                    FieldType::Choice => "choice",
+                    FieldType::Signature => "signature",
+                    FieldType::Unknown(_) => "unknown",
+                };
+                obj.insert("field_type".into(), serde_json::Value::from(ft_str));
+
+                let value = match &field.value {
+                    FieldValue::Text(s) => serde_json::Value::from(s.as_str()),
+                    FieldValue::Name(s) => serde_json::Value::from(s.as_str()),
+                    FieldValue::Boolean(b) => serde_json::Value::from(*b),
+                    FieldValue::Array(v) => serde_json::Value::Array(
+                        v.iter().map(|s| serde_json::Value::from(s.as_str())).collect(),
+                    ),
+                    FieldValue::None => serde_json::Value::Null,
+                };
+                obj.insert("value".into(), value);
+
+                match &field.tooltip {
+                    Some(t) => obj.insert("tooltip".into(), serde_json::Value::from(t.as_str())),
+                    None => obj.insert("tooltip".into(), serde_json::Value::Null),
+                };
+
+                match &field.bounds {
+                    Some(b) => obj.insert("bounds".into(), serde_json::json!([b[0], b[1], b[2], b[3]])),
+                    None => obj.insert("bounds".into(), serde_json::Value::Null),
+                };
+
+                match field.flags {
+                    Some(f) => {
+                        obj.insert("flags".into(), serde_json::Value::from(f));
+                        obj.insert(
+                            "is_readonly".into(),
+                            serde_json::Value::from(f & field_flags::READ_ONLY != 0),
+                        );
+                        obj.insert(
+                            "is_required".into(),
+                            serde_json::Value::from(f & field_flags::REQUIRED != 0),
+                        );
+                    }
+                    None => {
+                        obj.insert("flags".into(), serde_json::Value::Null);
+                        obj.insert("is_readonly".into(), serde_json::Value::from(false));
+                        obj.insert("is_required".into(), serde_json::Value::from(false));
+                    }
+                };
+
+                match field.max_length {
+                    Some(ml) => obj.insert("max_length".into(), serde_json::Value::from(ml)),
+                    None => obj.insert("max_length".into(), serde_json::Value::Null),
+                };
+
+                serde_json::Value::Object(obj)
+            })
+            .collect();
+
+        serde_wasm_bindgen::to_value(&result)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Check if the document contains XFA form data.
+    ///
+    /// @returns true if the document has XFA form data
+    #[wasm_bindgen(js_name = "hasXfa")]
+    pub fn has_xfa(&mut self) -> Result<bool, JsValue> {
+        use crate::xfa::XfaExtractor;
+
+        XfaExtractor::has_xfa(&mut self.inner)
+            .map_err(|e| JsValue::from_str(&format!("Failed to check XFA: {}", e)))
+    }
+
+    /// Export form field data as FDF or XFDF bytes.
+    ///
+    /// @param format - "fdf" or "xfdf" (default: "fdf")
+    /// @returns Uint8Array containing the exported form data
+    #[wasm_bindgen(js_name = "exportFormData")]
+    pub fn export_form_data(&mut self, format: Option<String>) -> Result<Vec<u8>, JsValue> {
+        let fmt = format.as_deref().unwrap_or("fdf");
+
+        let editor = self.ensure_editor()?;
+
+        // Write to a temporary in-memory buffer via a temp file path
+        let tmp_path = "/tmp/pdf_oxide_form_export_wasm.tmp";
+        match fmt {
+            "fdf" => editor
+                .export_form_data_fdf(tmp_path)
+                .map_err(|e| JsValue::from_str(&format!("Failed to export FDF: {}", e)))?,
+            "xfdf" => editor
+                .export_form_data_xfdf(tmp_path)
+                .map_err(|e| JsValue::from_str(&format!("Failed to export XFDF: {}", e)))?,
+            _ => return Err(JsValue::from_str(&format!(
+                "Unknown format '{}'. Use 'fdf' or 'xfdf'.", fmt
+            ))),
+        }
+
+        let bytes = std::fs::read(tmp_path)
+            .map_err(|e| JsValue::from_str(&format!("Failed to read exported data: {}", e)))?;
+        let _ = std::fs::remove_file(tmp_path);
+        Ok(bytes)
     }
 
     // ========================================================================
@@ -1573,6 +1722,57 @@ mod tests {
     fn test_apply_all_redactions() {
         let mut doc = doc_from_text("Hello");
         assert!(doc.apply_all_redactions().is_ok());
+    }
+
+    // ========================================================================
+    // Group: Form Fields
+    // ========================================================================
+
+    fn make_form_pdf() -> Vec<u8> {
+        use crate::geometry::Rect;
+        use crate::writer::{CheckboxWidget, ComboBoxWidget, PdfWriter, TextFieldWidget};
+
+        let mut writer = PdfWriter::new();
+        {
+            let mut page = writer.add_page(612.0, 792.0);
+            page.add_text_field(
+                TextFieldWidget::new("name", Rect::new(72.0, 700.0, 200.0, 20.0))
+                    .with_value("Alice"),
+            );
+            page.add_checkbox(
+                CheckboxWidget::new("agree", Rect::new(72.0, 650.0, 15.0, 15.0)).checked(),
+            );
+            page.add_combo_box(
+                ComboBoxWidget::new("color", Rect::new(72.0, 600.0, 150.0, 20.0))
+                    .with_options(vec!["Red", "Blue", "Green"])
+                    .with_value("Blue"),
+            );
+        }
+        writer.finish().expect("Failed to create form PDF")
+    }
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_get_form_fields_returns_array() {
+        let bytes = make_form_pdf();
+        let mut doc = WasmPdfDocument::new(&bytes).unwrap();
+        let result = doc.get_form_fields().unwrap();
+        assert!(js_sys::Array::is_array(&result));
+        let arr = js_sys::Array::from(&result);
+        assert!(arr.length() >= 3, "Should have at least 3 fields, got {}", arr.length());
+    }
+
+    #[test]
+    fn test_has_xfa_on_plain_pdf() {
+        let mut doc = doc_from_text("No XFA");
+        assert!(!doc.has_xfa().unwrap(), "Plain text PDF should not have XFA");
+    }
+
+    #[test]
+    fn test_has_xfa_on_form_pdf() {
+        let bytes = make_form_pdf();
+        let mut doc = WasmPdfDocument::new(&bytes).unwrap();
+        assert!(!doc.has_xfa().unwrap(), "PdfWriter form should not have XFA");
     }
 
     // ========================================================================

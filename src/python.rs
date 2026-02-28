@@ -51,6 +51,18 @@ pub struct PyPdfDocument {
     editor: Option<RustDocumentEditor>,
 }
 
+impl PyPdfDocument {
+    /// Ensure the editor is initialized, creating it from the path if needed.
+    fn ensure_editor(&mut self) -> PyResult<()> {
+        if self.editor.is_none() {
+            let editor = RustDocumentEditor::open(&self.path)
+                .map_err(|e| PyRuntimeError::new_err(format!("Failed to open editor: {}", e)))?;
+            self.editor = Some(editor);
+        }
+        Ok(())
+    }
+}
+
 #[pymethods]
 impl PyPdfDocument {
     /// Open a PDF file.
@@ -322,7 +334,7 @@ impl PyPdfDocument {
     ///     >>> markdown = doc.to_markdown(0, detect_headings=True)
     ///     >>> with open("output.md", "w") as f:
     ///     ...     f.write(markdown)
-    #[pyo3(signature = (page, preserve_layout=false, detect_headings=true, include_images=true, image_output_dir=None, embed_images=true))]
+    #[pyo3(signature = (page, preserve_layout=false, detect_headings=true, include_images=true, image_output_dir=None, embed_images=true, include_form_fields=true))]
     fn to_markdown(
         &mut self,
         page: usize,
@@ -331,6 +343,7 @@ impl PyPdfDocument {
         include_images: bool,
         image_output_dir: Option<String>,
         embed_images: bool,
+        include_form_fields: bool,
     ) -> PyResult<String> {
         let options = RustConversionOptions {
             preserve_layout,
@@ -339,6 +352,7 @@ impl PyPdfDocument {
             include_images,
             image_output_dir,
             embed_images,
+            include_form_fields,
             ..Default::default()
         };
 
@@ -367,7 +381,7 @@ impl PyPdfDocument {
     ///     >>> html = doc.to_html(0, preserve_layout=False)
     ///     >>> with open("output.html", "w") as f:
     ///     ...     f.write(html)
-    #[pyo3(signature = (page, preserve_layout=false, detect_headings=true, include_images=true, image_output_dir=None, embed_images=true))]
+    #[pyo3(signature = (page, preserve_layout=false, detect_headings=true, include_images=true, image_output_dir=None, embed_images=true, include_form_fields=true))]
     fn to_html(
         &mut self,
         page: usize,
@@ -376,6 +390,7 @@ impl PyPdfDocument {
         include_images: bool,
         image_output_dir: Option<String>,
         embed_images: bool,
+        include_form_fields: bool,
     ) -> PyResult<String> {
         let options = RustConversionOptions {
             preserve_layout,
@@ -384,6 +399,7 @@ impl PyPdfDocument {
             include_images,
             image_output_dir,
             embed_images,
+            include_form_fields,
             ..Default::default()
         };
 
@@ -411,7 +427,7 @@ impl PyPdfDocument {
     ///     >>> markdown = doc.to_markdown_all(detect_headings=True)
     ///     >>> with open("book.md", "w") as f:
     ///     ...     f.write(markdown)
-    #[pyo3(signature = (preserve_layout=false, detect_headings=true, include_images=true, image_output_dir=None, embed_images=true))]
+    #[pyo3(signature = (preserve_layout=false, detect_headings=true, include_images=true, image_output_dir=None, embed_images=true, include_form_fields=true))]
     fn to_markdown_all(
         &mut self,
         preserve_layout: bool,
@@ -419,6 +435,7 @@ impl PyPdfDocument {
         include_images: bool,
         image_output_dir: Option<String>,
         embed_images: bool,
+        include_form_fields: bool,
     ) -> PyResult<String> {
         let options = RustConversionOptions {
             preserve_layout,
@@ -427,6 +444,7 @@ impl PyPdfDocument {
             include_images,
             image_output_dir,
             embed_images,
+            include_form_fields,
             ..Default::default()
         };
 
@@ -454,7 +472,7 @@ impl PyPdfDocument {
     ///     >>> html = doc.to_html_all(preserve_layout=True)
     ///     >>> with open("book.html", "w") as f:
     ///     ...     f.write(html)
-    #[pyo3(signature = (preserve_layout=false, detect_headings=true, include_images=true, image_output_dir=None, embed_images=true))]
+    #[pyo3(signature = (preserve_layout=false, detect_headings=true, include_images=true, image_output_dir=None, embed_images=true, include_form_fields=true))]
     fn to_html_all(
         &mut self,
         preserve_layout: bool,
@@ -462,6 +480,7 @@ impl PyPdfDocument {
         include_images: bool,
         image_output_dir: Option<String>,
         embed_images: bool,
+        include_form_fields: bool,
     ) -> PyResult<String> {
         let options = RustConversionOptions {
             preserve_layout,
@@ -470,6 +489,7 @@ impl PyPdfDocument {
             include_images,
             image_output_dir,
             embed_images,
+            include_form_fields,
             ..Default::default()
         };
 
@@ -1822,12 +1842,299 @@ impl PyPdfDocument {
             .map_err(|e| PyRuntimeError::new_err(format!("OCR extraction failed: {}", e)))
     }
 
+    // ========================================================================
+    // Form Fields (AcroForm)
+    // ========================================================================
+
+    /// Get all form fields from the document.
+    ///
+    /// Extracts AcroForm fields including text inputs, checkboxes, radio buttons,
+    /// dropdowns, and signature fields. Works with tax forms, insurance documents,
+    /// government forms, and any PDF with interactive fields.
+    ///
+    /// Returns:
+    ///     list[FormField]: List of form fields with names, types, values, and metadata
+    ///
+    /// Raises:
+    ///     RuntimeError: If form extraction fails
+    ///
+    /// Example:
+    ///     >>> doc = PdfDocument("w2_form.pdf")
+    ///     >>> fields = doc.get_form_fields()
+    ///     >>> for f in fields:
+    ///     ...     print(f"{f.name}: {f.value}")
+    fn get_form_fields(&mut self) -> PyResult<Vec<PyFormField>> {
+        use crate::extractors::forms::FormExtractor;
+
+        let fields = FormExtractor::extract_fields(&mut self.inner)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to extract form fields: {}", e)))?;
+
+        Ok(fields.into_iter().map(|f| PyFormField { inner: f }).collect())
+    }
+
+    /// Get the value of a specific form field by name.
+    ///
+    /// Args:
+    ///     name (str): Full qualified field name (e.g., "topmostSubform[0].Page1[0].f1_01[0]")
+    ///
+    /// Returns:
+    ///     str | bool | list | None: The field value, or None if not found
+    ///
+    /// Raises:
+    ///     RuntimeError: If field lookup fails
+    ///
+    /// Example:
+    ///     >>> val = doc.get_form_field_value("employee_name")
+    ///     >>> print(val)  # "John Doe"
+    fn get_form_field_value(&mut self, name: &str, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.ensure_editor()?;
+        let editor = self.editor.as_mut().unwrap();
+
+        let value = editor
+            .get_form_field_value(name)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to get field value: {}", e)))?;
+
+        match value {
+            Some(v) => form_field_value_to_python(&v, py),
+            None => Ok(py.None()),
+        }
+    }
+
+    /// Set the value of a form field.
+    ///
+    /// Args:
+    ///     name (str): Full qualified field name
+    ///     value (str | bool): New value for the field
+    ///
+    /// Raises:
+    ///     RuntimeError: If the field is not found or value cannot be set
+    ///
+    /// Example:
+    ///     >>> doc.set_form_field_value("employee_name", "Jane Doe")
+    ///     >>> doc.save("filled_form.pdf")
+    fn set_form_field_value(&mut self, name: &str, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        self.ensure_editor()?;
+        let editor = self.editor.as_mut().unwrap();
+
+        let field_value = python_to_form_field_value(value)?;
+
+        editor
+            .set_form_field_value(name, field_value)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to set field value: {}", e)))
+    }
+
+    /// Check if the document contains an XFA form.
+    ///
+    /// XFA (XML Forms Architecture) is used by some PDF generators (e.g., Adobe LiveCycle).
+    /// IRS W-2 and many government forms are hybrid AcroForm + XFA.
+    ///
+    /// Returns:
+    ///     bool: True if the document has XFA form data
+    ///
+    /// Example:
+    ///     >>> if doc.has_xfa():
+    ///     ...     print("Document has XFA form data")
+    fn has_xfa(&mut self) -> PyResult<bool> {
+        use crate::xfa::XfaExtractor;
+
+        XfaExtractor::has_xfa(&mut self.inner)
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to check XFA: {}", e)))
+    }
+
+    /// Export form data to FDF or XFDF format.
+    ///
+    /// Args:
+    ///     path (str): Output file path
+    ///     format (str): Export format, "fdf" or "xfdf" (default: "fdf")
+    ///
+    /// Raises:
+    ///     RuntimeError: If export fails
+    ///
+    /// Example:
+    ///     >>> doc.export_form_data("form_data.fdf")
+    ///     >>> doc.export_form_data("form_data.xfdf", format="xfdf")
+    #[pyo3(signature = (path, format="fdf"))]
+    fn export_form_data(&mut self, path: &str, format: &str) -> PyResult<()> {
+        self.ensure_editor()?;
+        let editor = self.editor.as_mut().unwrap();
+
+        match format {
+            "fdf" => editor
+                .export_form_data_fdf(path)
+                .map_err(|e| PyRuntimeError::new_err(format!("Failed to export FDF: {}", e))),
+            "xfdf" => editor
+                .export_form_data_xfdf(path)
+                .map_err(|e| PyRuntimeError::new_err(format!("Failed to export XFDF: {}", e))),
+            _ => Err(PyRuntimeError::new_err(
+                format!("Unknown format '{}'. Use 'fdf' or 'xfdf'.", format),
+            )),
+        }
+    }
+
     /// String representation of the document.
     ///
     /// Returns:
     ///     str: Representation showing PDF version
     fn __repr__(&self) -> String {
         format!("PdfDocument(version={}.{})", self.inner.version().0, self.inner.version().1)
+    }
+}
+
+// === Form Field Type ===
+
+use crate::extractors::forms::{
+    FieldType as RustFieldType, FieldValue as RustFieldValue,
+    FormField as RustFormField, field_flags,
+};
+
+/// A form field extracted from a PDF AcroForm.
+///
+/// Represents interactive fields like text inputs, checkboxes, radio buttons,
+/// dropdowns, and signature fields found in PDF forms.
+///
+/// Properties:
+///     name (str): Full qualified field name
+///     field_type (str): Field type ("text", "button", "choice", "signature", or "unknown")
+///     value (str | bool | list | None): Field value
+///     tooltip (str | None): Tooltip/description text
+///     bounds (tuple | None): Bounding box as (x1, y1, x2, y2) or None
+///     flags (int | None): Raw field flags bitmask
+///     max_length (int | None): Maximum length for text fields
+///     is_readonly (bool): Whether the field is read-only
+///     is_required (bool): Whether the field is required
+///
+/// Example:
+///     >>> fields = doc.get_form_fields()
+///     >>> for f in fields:
+///     ...     print(f"{f.name} ({f.field_type}): {f.value}")
+#[pyclass(name = "FormField", unsendable)]
+pub struct PyFormField {
+    inner: RustFormField,
+}
+
+#[pymethods]
+impl PyFormField {
+    /// Full qualified field name (e.g., "topmostSubform[0].Page1[0].f1_01[0]").
+    #[getter]
+    fn name(&self) -> &str {
+        &self.inner.full_name
+    }
+
+    /// Field type as a string: "text", "button", "choice", "signature", or "unknown".
+    #[getter]
+    fn field_type(&self) -> &str {
+        match &self.inner.field_type {
+            RustFieldType::Text => "text",
+            RustFieldType::Button => "button",
+            RustFieldType::Choice => "choice",
+            RustFieldType::Signature => "signature",
+            RustFieldType::Unknown(_) => "unknown",
+        }
+    }
+
+    /// Field value: str for text/name, bool for checkbox, list for multi-select, None if empty.
+    #[getter]
+    fn value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        field_value_to_python(&self.inner.value, py)
+    }
+
+    /// Tooltip or description text, if set.
+    #[getter]
+    fn tooltip(&self) -> Option<&str> {
+        self.inner.tooltip.as_deref()
+    }
+
+    /// Bounding box as (x1, y1, x2, y2), or None if not available.
+    #[getter]
+    fn bounds(&self) -> Option<(f64, f64, f64, f64)> {
+        self.inner.bounds.map(|b| (b[0], b[1], b[2], b[3]))
+    }
+
+    /// Raw field flags bitmask (see PDF spec Table 221).
+    #[getter]
+    fn flags(&self) -> Option<u32> {
+        self.inner.flags
+    }
+
+    /// Maximum text length for text fields, or None.
+    #[getter]
+    fn max_length(&self) -> Option<u32> {
+        self.inner.max_length
+    }
+
+    /// Whether this field is read-only.
+    #[getter]
+    fn is_readonly(&self) -> bool {
+        self.inner.flags.map_or(false, |f| f & field_flags::READ_ONLY != 0)
+    }
+
+    /// Whether this field is required.
+    #[getter]
+    fn is_required(&self) -> bool {
+        self.inner.flags.map_or(false, |f| f & field_flags::REQUIRED != 0)
+    }
+
+    fn __repr__(&self) -> String {
+        let val_str = match &self.inner.value {
+            RustFieldValue::Text(s) => format!("\"{}\"", s),
+            RustFieldValue::Boolean(b) => format!("{}", b),
+            RustFieldValue::Name(s) => format!("\"{}\"", s),
+            RustFieldValue::Array(v) => format!("{:?}", v),
+            RustFieldValue::None => "None".to_string(),
+        };
+        format!(
+            "FormField(name=\"{}\", type=\"{}\", value={})",
+            self.inner.full_name,
+            self.field_type(),
+            val_str
+        )
+    }
+}
+
+/// Convert an extractor FieldValue to a Python object.
+fn field_value_to_python(value: &RustFieldValue, py: Python<'_>) -> PyResult<Py<PyAny>> {
+    match value {
+        RustFieldValue::Text(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
+        RustFieldValue::Name(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
+        RustFieldValue::Boolean(b) => Ok(b.into_pyobject(py)?.to_owned().into_any().unbind()),
+        RustFieldValue::Array(v) => Ok(v.into_pyobject(py)?.into_any().unbind()),
+        RustFieldValue::None => Ok(py.None()),
+    }
+}
+
+/// Convert an editor FormFieldValue to a Python object.
+fn form_field_value_to_python(
+    value: &crate::editor::form_fields::FormFieldValue,
+    py: Python<'_>,
+) -> PyResult<Py<PyAny>> {
+    use crate::editor::form_fields::FormFieldValue;
+    match value {
+        FormFieldValue::Text(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
+        FormFieldValue::Choice(s) => Ok(s.into_pyobject(py)?.into_any().unbind()),
+        FormFieldValue::Boolean(b) => Ok(b.into_pyobject(py)?.to_owned().into_any().unbind()),
+        FormFieldValue::MultiChoice(v) => Ok(v.into_pyobject(py)?.into_any().unbind()),
+        FormFieldValue::None => Ok(py.None()),
+    }
+}
+
+/// Convert a Python value to a FormFieldValue.
+fn python_to_form_field_value(
+    value: &Bound<'_, PyAny>,
+) -> PyResult<crate::editor::form_fields::FormFieldValue> {
+    use crate::editor::form_fields::FormFieldValue;
+
+    if let Ok(b) = value.extract::<bool>() {
+        Ok(FormFieldValue::Boolean(b))
+    } else if let Ok(s) = value.extract::<String>() {
+        Ok(FormFieldValue::Text(s))
+    } else if let Ok(v) = value.extract::<Vec<String>>() {
+        Ok(FormFieldValue::MultiChoice(v))
+    } else if value.is_none() {
+        Ok(FormFieldValue::None)
+    } else {
+        Err(PyRuntimeError::new_err(
+            "Value must be str, bool, list[str], or None",
+        ))
     }
 }
 
@@ -3863,6 +4170,9 @@ fn pdf_oxide(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Text extraction types
     m.add_class::<PyTextChar>()?;
     m.add_class::<PyTextSpan>()?;
+
+    // Form field types
+    m.add_class::<PyFormField>()?;
 
     // OCR types (optional, requires ocr feature)
     #[cfg(feature = "ocr")]
