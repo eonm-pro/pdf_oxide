@@ -2,6 +2,23 @@
 
 All notable changes to PDFOxide are documented here.
 
+## [0.3.11] - 2026-02-28
+> CLI, MCP Server, Multi-Platform Distribution, Table Detection Pipeline
+
+### New Features
+
+- **CLI with 18 subcommands and interactive REPL** (#176) — standalone `pdf-oxide` binary with text/markdown/html extraction, merge, split, compress, encrypt/decrypt, search, images, rotate, crop, watermark, bookmarks. Interactive REPL with session persistence and autocomplete.
+
+- **MCP server for AI agent PDF extraction** (#177) — `pdf-oxide-mcp` binary implementing Model Context Protocol (JSON-RPC 2.0) with `extract` tool for text/markdown/HTML output, page selection, image extraction.
+
+- **Multi-platform distribution** — pre-built binaries for 6 targets (Linux x86_64 glibc/musl, Linux ARM64, macOS Intel/Apple Silicon, Windows). Homebrew, Scoop, .deb, cargo-binstall, and shell installer support.
+
+- **Table detection pipeline** (#178) — wired structure-tree and spatial table detectors into `to_markdown()`, `to_html()`, and converters via new `extract_page_tables()` method. Markdown renders `| col |` tables, HTML renders `<table>` elements, plain text uses tab-delimited format.
+
+### Bug Fixes
+
+- Replaced broken inline table heuristic (required all rows to have same column count) with proper two-strategy detection: structure tree first, spatial fallback.
+
 ## [0.3.10] - 2026-02-26
 > 21 Issues Resolved — Parallel Extraction, WASM, Batch API, Text Quality, Table Improvements
 
