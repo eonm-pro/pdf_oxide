@@ -5,6 +5,7 @@ The fastest Python PDF library for text extraction, image extraction, and markdo
 [![Crates.io](https://img.shields.io/crates/v/pdf_oxide.svg)](https://crates.io/crates/pdf_oxide)
 [![PyPI](https://img.shields.io/pypi/v/pdf_oxide.svg)](https://pypi.org/project/pdf_oxide/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/pdf-oxide)](https://pypi.org/project/pdf-oxide/)
+[![npm](https://img.shields.io/npm/v/pdf-oxide-wasm)](https://www.npmjs.com/package/pdf-oxide-wasm)
 [![Documentation](https://docs.rs/pdf_oxide/badge.svg)](https://docs.rs/pdf_oxide)
 [![Build Status](https://github.com/yfedoseev/pdf_oxide/workflows/CI/badge.svg)](https://github.com/yfedoseev/pdf_oxide/actions)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](https://opensource.org/licenses)
@@ -190,6 +191,16 @@ Wheels available for Linux, macOS, and Windows. Python 3.8–3.14.
 ```toml
 [dependencies]
 pdf_oxide = "0.3"
+```
+
+### JavaScript/WASM
+
+```bash
+npm install pdf-oxide-wasm
+```
+
+```javascript
+const { WasmPdfDocument } = require("pdf-oxide-wasm");
 ```
 
 ## Building from Source

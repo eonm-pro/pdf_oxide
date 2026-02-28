@@ -2,9 +2,23 @@
 
 PDFOxide compiles to WebAssembly for use in browsers and Node.js. The same Rust core that powers the Python and Rust APIs runs directly in JavaScript/TypeScript with near-native performance.
 
-## Building from Source
+## Installation
 
-### Prerequisites
+### From npm (recommended)
+
+```bash
+npm install pdf-oxide-wasm
+```
+
+```javascript
+const { WasmPdfDocument } = require("pdf-oxide-wasm");
+// or ESM:
+// import { WasmPdfDocument } from "pdf-oxide-wasm";
+```
+
+### Building from Source
+
+#### Prerequisites
 
 - Rust toolchain with `wasm32-unknown-unknown` target
 - `wasm-bindgen-cli` (must match the `wasm-bindgen` version in Cargo.toml)

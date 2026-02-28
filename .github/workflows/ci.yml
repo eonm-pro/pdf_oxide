@@ -147,6 +147,24 @@ jobs:
       - name: Test Python bindings
         run: uv run python -c "import pdf_oxide; print(pdf_oxide.VERSION)"
 
+  # WASM build check
+  wasm-build:
+    name: WASM Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build WASM
+        run: cargo build --lib --target wasm32-unknown-unknown --features wasm
+
   # Code coverage with enforcement
   coverage:
     name: Code Coverage

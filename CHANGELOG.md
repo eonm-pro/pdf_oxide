@@ -3,7 +3,7 @@
 All notable changes to PDFOxide are documented here.
 
 ## [0.3.10] - 2026-02-26
-> 17 Issues Resolved — Parallel Extraction, WASM, Batch API, Text Quality, Table Improvements
+> 21 Issues Resolved — Parallel Extraction, WASM, Batch API, Text Quality, Table Improvements
 
 ### New Features
 
@@ -14,6 +14,8 @@ All notable changes to PDFOxide are documented here.
 - **Batch processing API** (#167) — New `BatchProcessor` for multi-PDF workflows with progress callbacks and error collection. Supports both sequential and parallel (with `parallel` feature) processing. `BatchResult` and `BatchSummary` for per-file results and aggregate statistics.
 
 - **OCR hybrid detection** (#158) — New `PageType` enum (`NativeText`, `ScannedPage`, `HybridPage`) with multi-heuristic detection: text density, replacement character ratio, image coverage. `extract_text_with_ocr()` now intelligently selects between native text and OCR output.
+
+- **Full WASM/Python API parity** (#172, #173) — 10 new method groups across WASM and Python bindings: form field get/set, image bytes extraction, PDF-from-images, form flattening, PDF merging, file embedding, page labels, XMP metadata. Python gains `from_image()`, `from_images()`, `from_image_bytes()` constructors.
 
 ### Bug Fixes
 
@@ -28,6 +30,17 @@ All notable changes to PDFOxide are documented here.
 - **Reduce .unwrap() usage** (#155) — Replaced risky `.unwrap()` calls in core library paths with safe alternatives (`match`, `expect` with invariant comments, proper error propagation).
 
 - **Table extraction** (#157) — Spatial table detector now detects merged cells (colspan/rowspan) via bounding box analysis, supports multi-line cell content, and uses font property analysis for header row detection.
+
+- **Form field persistence in incremental save** (#174) — `DocumentEditor.save()` now correctly persists form field value changes when using incremental save mode.
+
+- **JPEG multi-filter extraction** — FlateDecode+DCTDecode filter chains now decode correctly, fixing garbled output from PDFs that apply multiple filters to JPEG image streams.
+
+- **OCR CTC blank token & recursion** — Fixed CTC decoding blank token handling and infinite recursion in OCR V5 strategy.
+
+### Code Quality
+
+- 85% test coverage enforced (4,200+ library tests), clippy enforcement with zero warnings, 31 lint fixes across the codebase.
+- Renamed version-referenced test files by topic for better discoverability.
 
 ### Performance
 
