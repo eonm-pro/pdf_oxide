@@ -473,19 +473,33 @@ mod tests {
     // Tests using real system font (DejaVu Sans)
     // =========================================================================
 
-    /// Helper to load DejaVu Sans font for testing.
+    /// Helper to load a font by trying bundled test fixtures first, then system paths.
+    fn load_font(name: &str) -> Option<Vec<u8>> {
+        let manifest = env!("CARGO_MANIFEST_DIR");
+        let candidates = [
+            format!("{manifest}/tests/fixtures/fonts/{name}"),
+            format!("/usr/share/fonts/truetype/dejavu/{name}"),
+            format!("/usr/share/fonts/dejavu-sans-fonts/{name}"),
+            format!("/usr/share/fonts/TTF/{name}"),
+        ];
+        for path in &candidates {
+            if let Ok(data) = std::fs::read(path) {
+                return Some(data);
+            }
+        }
+        None
+    }
+
     fn load_dejavu_sans() -> Option<Vec<u8>> {
-        std::fs::read("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf").ok()
+        load_font("DejaVuSans.ttf")
     }
 
-    /// Helper to load DejaVu Sans Bold font for testing.
     fn load_dejavu_sans_bold() -> Option<Vec<u8>> {
-        std::fs::read("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf").ok()
+        load_font("DejaVuSans-Bold.ttf")
     }
 
-    /// Helper to load DejaVu Sans Mono font for testing.
     fn load_dejavu_sans_mono() -> Option<Vec<u8>> {
-        std::fs::read("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf").ok()
+        load_font("DejaVuSansMono.ttf")
     }
 
     #[test]
