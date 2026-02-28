@@ -1,4 +1,4 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use std::path::Path;
 
 pub fn run(
@@ -7,7 +7,7 @@ pub fn run(
     annotations: bool,
     output: Option<&Path>,
     password: Option<&str>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let _ = password;
     let mut editor = DocumentEditor::open(file)?;
 

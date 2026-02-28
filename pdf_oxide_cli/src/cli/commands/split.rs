@@ -1,4 +1,4 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use std::path::Path;
 
 pub fn run(
@@ -6,7 +6,7 @@ pub fn run(
     pages: Option<&str>,
     output: Option<&Path>,
     password: Option<&str>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let mut doc = super::open_doc(file, password)?;
     let page_count = doc.page_count()?;
     drop(doc);

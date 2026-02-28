@@ -1,11 +1,11 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use std::path::Path;
 
 pub fn run(
     file: &Path,
     output: Option<&Path>,
     password: Option<&str>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     // Note: DocumentEditor doesn't support authenticate(); encrypted PDFs should
     // be decrypted via PdfDocument first. For compress, we open directly.
     let _ = password; // Password handling for DocumentEditor not yet supported

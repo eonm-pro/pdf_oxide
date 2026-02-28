@@ -1,7 +1,7 @@
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 
-use crate::PdfDocument;
+use pdf_oxide::PdfDocument;
 use super::colors;
 
 struct ReplState {
@@ -21,10 +21,10 @@ impl ReplState {
         }
     }
 
-    fn ensure_doc(&mut self) -> crate::Result<&mut PdfDocument> {
+    fn ensure_doc(&mut self) -> pdf_oxide::Result<&mut PdfDocument> {
         self.current_doc
             .as_mut()
-            .ok_or_else(|| crate::Error::InvalidOperation(
+            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
                 "No PDF loaded. Use 'open <file>' first.".to_string(),
             ))
     }
@@ -35,7 +35,7 @@ pub fn enter(
     password: Option<String>,
     json: bool,
     _verbose: bool,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     if !no_banner {
         super::banner::print_banner();
         eprintln!("Type {} for commands, {} to quit.", colors::bold("help"), colors::bold("exit"));
@@ -140,9 +140,9 @@ fn print_help() {
     eprintln!("  exit|quit|q        Exit the REPL (also: bye, Ctrl+D)");
 }
 
-fn cmd_open(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_open(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     if args.is_empty() {
-        return Err(crate::Error::InvalidOperation("Usage: open <file>".to_string()));
+        return Err(pdf_oxide::Error::InvalidOperation("Usage: open <file>".to_string()));
     }
     let path = PathBuf::from(args);
     let mut doc = PdfDocument::open(&path)?;
@@ -156,7 +156,7 @@ fn cmd_open(state: &mut ReplState, args: &str) -> crate::Result<()> {
     Ok(())
 }
 
-fn cmd_close(state: &mut ReplState) -> crate::Result<()> {
+fn cmd_close(state: &mut ReplState) -> pdf_oxide::Result<()> {
     if state.current_doc.is_some() {
         let name = state
             .current_file
@@ -172,7 +172,7 @@ fn cmd_close(state: &mut ReplState) -> crate::Result<()> {
     Ok(())
 }
 
-fn with_doc(state: &mut ReplState, args: &str, f: impl FnOnce(&mut PdfDocument) -> crate::Result<()>) -> crate::Result<()> {
+fn with_doc(state: &mut ReplState, args: &str, f: impl FnOnce(&mut PdfDocument) -> pdf_oxide::Result<()>) -> pdf_oxide::Result<()> {
     if args.is_empty() {
         let doc = state.ensure_doc()?;
         f(doc)
@@ -185,7 +185,7 @@ fn with_doc(state: &mut ReplState, args: &str, f: impl FnOnce(&mut PdfDocument) 
     }
 }
 
-fn cmd_text(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_text(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     with_doc(state, args, |doc| {
         let page_count = doc.page_count()?;
         for i in 0..page_count {
@@ -196,10 +196,10 @@ fn cmd_text(state: &mut ReplState, args: &str) -> crate::Result<()> {
     })
 }
 
-fn cmd_markdown(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_markdown(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     with_doc(state, args, |doc| {
         let page_count = doc.page_count()?;
-        let options = crate::converters::ConversionOptions::default();
+        let options = pdf_oxide::converters::ConversionOptions::default();
         for i in 0..page_count {
             let md = doc.to_markdown(i, &options)?;
             println!("{md}");
@@ -208,10 +208,10 @@ fn cmd_markdown(state: &mut ReplState, args: &str) -> crate::Result<()> {
     })
 }
 
-fn cmd_html(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_html(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     with_doc(state, args, |doc| {
         let page_count = doc.page_count()?;
-        let options = crate::converters::ConversionOptions::default();
+        let options = pdf_oxide::converters::ConversionOptions::default();
         for i in 0..page_count {
             let html = doc.to_html(i, &options)?;
             println!("{html}");
@@ -220,14 +220,14 @@ fn cmd_html(state: &mut ReplState, args: &str) -> crate::Result<()> {
     })
 }
 
-fn cmd_info(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_info(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     if !args.is_empty() {
         super::commands::info::run(Path::new(args), state.password.as_deref(), state.json)
     } else {
         let path = state
             .current_file
             .as_ref()
-            .ok_or_else(|| crate::Error::InvalidOperation(
+            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
                 "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
             ))?
             .clone();
@@ -235,13 +235,13 @@ fn cmd_info(state: &mut ReplState, args: &str) -> crate::Result<()> {
     }
 }
 
-fn cmd_search(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_search(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     if args.is_empty() {
-        return Err(crate::Error::InvalidOperation("Usage: search <pattern>".to_string()));
+        return Err(pdf_oxide::Error::InvalidOperation("Usage: search <pattern>".to_string()));
     }
     let doc = state.ensure_doc()?;
-    let options = crate::search::SearchOptions::default();
-    let results = crate::search::TextSearcher::search(doc, args, &options)?;
+    let options = pdf_oxide::search::SearchOptions::default();
+    let results = pdf_oxide::search::TextSearcher::search(doc, args, &options)?;
 
     if results.is_empty() {
         eprintln!("No matches found for '{args}'");
@@ -254,7 +254,7 @@ fn cmd_search(state: &mut ReplState, args: &str) -> crate::Result<()> {
     Ok(())
 }
 
-fn cmd_images(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_images(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     if !args.is_empty() {
         super::commands::images::run(
             Path::new(args),
@@ -267,7 +267,7 @@ fn cmd_images(state: &mut ReplState, args: &str) -> crate::Result<()> {
         let path = state
             .current_file
             .as_ref()
-            .ok_or_else(|| crate::Error::InvalidOperation(
+            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
                 "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
             ))?
             .clone();
@@ -281,21 +281,21 @@ fn cmd_images(state: &mut ReplState, args: &str) -> crate::Result<()> {
     }
 }
 
-fn cmd_pages(state: &mut ReplState) -> crate::Result<()> {
+fn cmd_pages(state: &mut ReplState) -> pdf_oxide::Result<()> {
     let doc = state.ensure_doc()?;
     let count = doc.page_count()?;
     println!("{count} pages");
     Ok(())
 }
 
-fn cmd_bookmarks(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_bookmarks(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     if !args.is_empty() {
         super::commands::bookmarks::run(Path::new(args), state.password.as_deref(), state.json)
     } else {
         let path = state
             .current_file
             .as_ref()
-            .ok_or_else(|| crate::Error::InvalidOperation(
+            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
                 "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
             ))?
             .clone();
@@ -303,14 +303,14 @@ fn cmd_bookmarks(state: &mut ReplState, args: &str) -> crate::Result<()> {
     }
 }
 
-fn cmd_forms(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_forms(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     if !args.is_empty() {
         super::commands::forms::run(Path::new(args), None, None, None, state.password.as_deref(), state.json)
     } else {
         let path = state
             .current_file
             .as_ref()
-            .ok_or_else(|| crate::Error::InvalidOperation(
+            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
                 "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
             ))?
             .clone();
@@ -319,11 +319,11 @@ fn cmd_forms(state: &mut ReplState, args: &str) -> crate::Result<()> {
 }
 
 /// Helper to get the current file path or error.
-fn require_file(state: &ReplState) -> crate::Result<PathBuf> {
+fn require_file(state: &ReplState) -> pdf_oxide::Result<PathBuf> {
     state
         .current_file
         .clone()
-        .ok_or_else(|| crate::Error::InvalidOperation(
+        .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
             "No PDF loaded. Use 'open <file>' first.".to_string(),
         ))
 }
@@ -352,15 +352,15 @@ fn parse_repl_args(args: &str) -> (Vec<String>, std::collections::HashMap<String
     (positional, flags)
 }
 
-fn cmd_rotate(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_rotate(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (positional, flags) = parse_repl_args(args);
 
     let degrees: i32 = positional
         .first()
-        .ok_or_else(|| crate::Error::InvalidOperation("Usage: rotate <degrees> [-o out.pdf] [--pages 1-3]".to_string()))?
+        .ok_or_else(|| pdf_oxide::Error::InvalidOperation("Usage: rotate <degrees> [-o out.pdf] [--pages 1-3]".to_string()))?
         .parse()
-        .map_err(|_| crate::Error::InvalidOperation("Degrees must be a number (90, 180, 270, -90)".to_string()))?;
+        .map_err(|_| pdf_oxide::Error::InvalidOperation("Degrees must be a number (90, 180, 270, -90)".to_string()))?;
 
     let output = flags.get("o").map(|s| PathBuf::from(s));
     let pages = flags.get("pages").map(|s| s.as_str());
@@ -368,7 +368,7 @@ fn cmd_rotate(state: &mut ReplState, args: &str) -> crate::Result<()> {
     super::commands::rotate::run(&path, degrees, pages, output.as_deref(), state.password.as_deref())
 }
 
-fn cmd_delete(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_delete(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (_positional, flags) = parse_repl_args(args);
 
@@ -378,20 +378,20 @@ fn cmd_delete(state: &mut ReplState, args: &str) -> crate::Result<()> {
     super::commands::delete::run(&path, pages, output.as_deref(), state.password.as_deref())
 }
 
-fn cmd_reorder(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_reorder(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (positional, flags) = parse_repl_args(args);
 
     let order = positional
         .first()
-        .ok_or_else(|| crate::Error::InvalidOperation("Usage: reorder <3,1,2,5,4> [-o out.pdf]".to_string()))?;
+        .ok_or_else(|| pdf_oxide::Error::InvalidOperation("Usage: reorder <3,1,2,5,4> [-o out.pdf]".to_string()))?;
 
     let output = flags.get("o").map(|s| PathBuf::from(s));
 
     super::commands::reorder::run(&path, order, output.as_deref(), state.password.as_deref())
 }
 
-fn cmd_metadata(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_metadata(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (_positional, flags) = parse_repl_args(args);
 
@@ -408,13 +408,13 @@ fn cmd_metadata(state: &mut ReplState, args: &str) -> crate::Result<()> {
     )
 }
 
-fn cmd_watermark(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_watermark(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (positional, flags) = parse_repl_args(args);
 
     let text = positional
         .first()
-        .ok_or_else(|| crate::Error::InvalidOperation("Usage: watermark <text> [-o out.pdf] [--pages 1-3]".to_string()))?;
+        .ok_or_else(|| pdf_oxide::Error::InvalidOperation("Usage: watermark <text> [-o out.pdf] [--pages 1-3]".to_string()))?;
 
     let opacity: f32 = flags.get("opacity").map(|s| s.parse().unwrap_or(0.3)).unwrap_or(0.3);
     let rotation: f32 = flags.get("rotation").map(|s| s.parse().unwrap_or(45.0)).unwrap_or(45.0);
@@ -429,7 +429,7 @@ fn cmd_watermark(state: &mut ReplState, args: &str) -> crate::Result<()> {
     )
 }
 
-fn cmd_flatten(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_flatten(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (_positional, flags) = parse_repl_args(args);
 
@@ -440,13 +440,13 @@ fn cmd_flatten(state: &mut ReplState, args: &str) -> crate::Result<()> {
     super::commands::flatten::run(&path, forms, annotations, output.as_deref(), state.password.as_deref())
 }
 
-fn cmd_crop(state: &mut ReplState, args: &str) -> crate::Result<()> {
+fn cmd_crop(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (positional, flags) = parse_repl_args(args);
 
     let margins = positional
         .first()
-        .ok_or_else(|| crate::Error::InvalidOperation("Usage: crop <l,r,t,b> [-o out.pdf] [--pages 1-3]".to_string()))?;
+        .ok_or_else(|| pdf_oxide::Error::InvalidOperation("Usage: crop <l,r,t,b> [-o out.pdf] [--pages 1-3]".to_string()))?;
 
     let pages = flags.get("pages").map(|s| s.as_str());
     let output = flags.get("o").map(|s| PathBuf::from(s));

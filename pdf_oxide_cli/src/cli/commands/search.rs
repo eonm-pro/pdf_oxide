@@ -1,4 +1,4 @@
-use crate::search::{SearchOptions, TextSearcher};
+use pdf_oxide::search::{SearchOptions, TextSearcher};
 use std::path::Path;
 
 pub fn run(
@@ -8,7 +8,7 @@ pub fn run(
     pages: Option<&str>,
     password: Option<&str>,
     json: bool,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let mut doc = super::open_doc(file, password)?;
     let page_count = doc.page_count()?;
 

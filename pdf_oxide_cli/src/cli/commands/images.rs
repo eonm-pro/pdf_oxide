@@ -6,7 +6,7 @@ pub fn run(
     output: Option<&Path>,
     password: Option<&str>,
     json: bool,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let mut doc = super::open_doc(file, password)?;
     let page_count = doc.page_count()?;
     let page_indices = super::resolve_pages(pages, page_count)?;

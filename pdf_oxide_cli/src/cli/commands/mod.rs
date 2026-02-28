@@ -20,11 +20,11 @@ pub mod flatten;
 pub mod crop;
 pub mod forms;
 
-use crate::PdfDocument;
+use pdf_oxide::PdfDocument;
 use std::path::Path;
 
 /// Open a PDF, optionally authenticating with a password.
-pub fn open_doc(path: &Path, password: Option<&str>) -> crate::Result<PdfDocument> {
+pub fn open_doc(path: &Path, password: Option<&str>) -> pdf_oxide::Result<PdfDocument> {
     let mut doc = PdfDocument::open(path)?;
     if let Some(pw) = password {
         doc.authenticate(pw.as_bytes())?;
@@ -36,16 +36,16 @@ pub fn open_doc(path: &Path, password: Option<&str>) -> crate::Result<PdfDocumen
 pub fn resolve_pages(
     pages_arg: Option<&str>,
     page_count: usize,
-) -> crate::Result<Vec<usize>> {
+) -> pdf_oxide::Result<Vec<usize>> {
     match pages_arg {
         Some(ranges) => super::pages::parse_page_ranges(ranges)
-            .map_err(|e| crate::Error::InvalidOperation(e)),
+            .map_err(|e| pdf_oxide::Error::InvalidOperation(e)),
         None => Ok((0..page_count).collect()),
     }
 }
 
 /// Write output to file or stdout.
-pub fn write_output(content: &str, output: Option<&Path>) -> crate::Result<()> {
+pub fn write_output(content: &str, output: Option<&Path>) -> pdf_oxide::Result<()> {
     use std::io::Write;
     match output {
         Some(path) => Ok(std::fs::write(path, content)?),

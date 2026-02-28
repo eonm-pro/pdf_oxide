@@ -1,4 +1,4 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use std::path::Path;
 
 pub fn run(
@@ -6,9 +6,9 @@ pub fn run(
     pages: Option<&str>,
     output: Option<&Path>,
     password: Option<&str>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let pages = pages.ok_or_else(|| {
-        crate::Error::InvalidOperation(
+        pdf_oxide::Error::InvalidOperation(
             "--pages is required for delete (e.g. --pages 2,5-7)".to_string(),
         )
     })?;
@@ -20,7 +20,7 @@ pub fn run(
     let page_indices = super::resolve_pages(Some(pages), page_count)?;
 
     if page_indices.len() >= page_count {
-        return Err(crate::Error::InvalidOperation(
+        return Err(pdf_oxide::Error::InvalidOperation(
             "Cannot delete all pages from a PDF".to_string(),
         ));
     }

@@ -1,4 +1,4 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use std::path::Path;
 
 pub fn run(
@@ -7,19 +7,19 @@ pub fn run(
     pages: Option<&str>,
     output: Option<&Path>,
     password: Option<&str>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     // Parse margins: left,right,top,bottom
     let parts: Vec<f32> = margins
         .split(',')
         .map(|s| {
             s.trim()
                 .parse::<f32>()
-                .map_err(|_| crate::Error::InvalidOperation(format!("Invalid margin value: '{}'", s.trim())))
+                .map_err(|_| pdf_oxide::Error::InvalidOperation(format!("Invalid margin value: '{}'", s.trim())))
         })
-        .collect::<crate::Result<Vec<_>>>()?;
+        .collect::<pdf_oxide::Result<Vec<_>>>()?;
 
     if parts.len() != 4 {
-        return Err(crate::Error::InvalidOperation(
+        return Err(pdf_oxide::Error::InvalidOperation(
             "Margins must be left,right,top,bottom (e.g. '50,50,50,50')".to_string(),
         ));
     }

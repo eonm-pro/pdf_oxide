@@ -1,12 +1,12 @@
-use crate::editor::{DocumentEditor, EditableDocument};
+use pdf_oxide::editor::{DocumentEditor, EditableDocument};
 use std::path::Path;
 
 pub fn run(
     files: &[std::path::PathBuf],
     output: Option<&Path>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     if files.len() < 2 {
-        return Err(crate::Error::InvalidOperation(
+        return Err(pdf_oxide::Error::InvalidOperation(
             "Merge requires at least 2 PDF files".to_string(),
         ));
     }

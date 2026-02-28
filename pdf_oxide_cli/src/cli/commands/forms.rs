@@ -1,5 +1,5 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
-use crate::editor::form_fields::FormFieldValue;
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::editor::form_fields::FormFieldValue;
 use std::path::Path;
 
 pub fn run(
@@ -9,7 +9,7 @@ pub fn run(
     output: Option<&Path>,
     password: Option<&str>,
     json: bool,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let _ = password;
     let mut editor = DocumentEditor::open(file)?;
 
@@ -104,14 +104,14 @@ fn format_value(val: &FormFieldValue) -> String {
     }
 }
 
-fn parse_fill_pairs(s: &str) -> crate::Result<Vec<(String, String)>> {
+fn parse_fill_pairs(s: &str) -> pdf_oxide::Result<Vec<(String, String)>> {
     let mut pairs = Vec::new();
     for part in s.split(',') {
         let part = part.trim();
         if let Some((key, value)) = part.split_once('=') {
             pairs.push((key.trim().to_string(), value.trim().to_string()));
         } else {
-            return Err(crate::Error::InvalidOperation(format!(
+            return Err(pdf_oxide::Error::InvalidOperation(format!(
                 "Invalid fill pair: '{part}'. Expected key=value"
             )));
         }

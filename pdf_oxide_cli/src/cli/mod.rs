@@ -14,7 +14,7 @@ use clap::Parser;
 use std::path::Path;
 
 /// Run the CLI. Called from the `pdf-oxide` binary entry point.
-pub fn run() -> crate::Result<()> {
+pub fn run() -> pdf_oxide::Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
 
     if args.len() <= 1 {
@@ -49,7 +49,7 @@ fn dispatch(
     verbose: bool,
     quiet: bool,
     json: bool,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let start = if verbose {
         Some(std::time::Instant::now())
     } else {
@@ -181,7 +181,7 @@ fn dispatch(
     result
 }
 
-fn run_piped_stdin() -> crate::Result<()> {
+fn run_piped_stdin() -> pdf_oxide::Result<()> {
     use std::io::BufRead;
     let stdin = std::io::stdin();
     let reader = stdin.lock();
@@ -189,14 +189,14 @@ fn run_piped_stdin() -> crate::Result<()> {
     if let Some(Ok(line)) = reader.lines().next() {
         let path = line.trim().to_string();
         if path.is_empty() {
-            return Err(crate::Error::InvalidOperation(
+            return Err(pdf_oxide::Error::InvalidOperation(
                 "No file path provided on stdin".to_string(),
             ));
         }
         let file = std::path::PathBuf::from(&path);
         commands::text::run(&file, None, None, None, false)
     } else {
-        Err(crate::Error::InvalidOperation(
+        Err(pdf_oxide::Error::InvalidOperation(
             "No input received on stdin".to_string(),
         ))
     }

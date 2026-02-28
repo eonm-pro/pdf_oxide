@@ -1,4 +1,4 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use std::path::Path;
 
 pub fn run(
@@ -7,12 +7,12 @@ pub fn run(
     pages: Option<&str>,
     output: Option<&Path>,
     password: Option<&str>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     // Validate degrees
     let normalized = match degrees {
         90 | 180 | 270 | -90 => degrees,
         _ => {
-            return Err(crate::Error::InvalidOperation(
+            return Err(pdf_oxide::Error::InvalidOperation(
                 format!("Invalid rotation: {degrees}. Must be 90, 180, 270, or -90"),
             ));
         }

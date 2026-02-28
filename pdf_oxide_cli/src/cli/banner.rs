@@ -39,7 +39,7 @@ pub fn print_banner() {
 
     let version_line = format!(
         "{:>42}",
-        format!("v{}", crate::VERSION)
+        format!("v{}", pdf_oxide::VERSION)
     );
     eprintln!("{}", colors::dim(&version_line));
     eprintln!();

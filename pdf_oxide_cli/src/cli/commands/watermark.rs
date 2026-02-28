@@ -1,6 +1,6 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
-use crate::geometry::Rect;
-use crate::writer::WatermarkAnnotation;
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::geometry::Rect;
+use pdf_oxide::writer::WatermarkAnnotation;
 use std::path::Path;
 
 pub fn run(
@@ -13,7 +13,7 @@ pub fn run(
     pages: Option<&str>,
     output: Option<&Path>,
     password: Option<&str>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let _ = password;
 
     let mut doc = super::open_doc(file, None)?;
@@ -29,7 +29,7 @@ pub fn run(
             .map(|s| s.trim().parse::<f32>().unwrap_or(0.0))
             .collect();
         if parts.len() != 3 {
-            return Err(crate::Error::InvalidOperation(
+            return Err(pdf_oxide::Error::InvalidOperation(
                 "Color must be R,G,B (e.g. '0.8,0,0')".to_string(),
             ));
         }

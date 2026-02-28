@@ -1,11 +1,11 @@
-use crate::api::Pdf;
+use pdf_oxide::api::Pdf;
 use std::path::Path;
 
 pub fn run(
     file: &Path,
     from: &str,
     output: Option<&Path>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let content = std::fs::read_to_string(file)?;
 
     let mut pdf = match from {
@@ -13,7 +13,7 @@ pub fn run(
         "html" => Pdf::from_html(&content)?,
         "text" => Pdf::from_text(&content)?,
         _ => {
-            return Err(crate::Error::InvalidOperation(format!(
+            return Err(pdf_oxide::Error::InvalidOperation(format!(
                 "Unknown format: '{from}'. Use --from markdown, --from html, or --from text"
             )))
         }

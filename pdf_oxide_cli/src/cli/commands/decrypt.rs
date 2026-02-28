@@ -1,11 +1,11 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use std::path::Path;
 
 pub fn run(
     file: &Path,
     _password: &str,
     output: Option<&Path>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let mut editor = DocumentEditor::open(file)?;
 
     let out_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {

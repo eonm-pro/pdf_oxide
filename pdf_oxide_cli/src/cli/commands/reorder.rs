@@ -1,4 +1,4 @@
-use crate::editor::{DocumentEditor, EditableDocument, SaveOptions};
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use std::path::Path;
 
 pub fn run(
@@ -6,7 +6,7 @@ pub fn run(
     order: &str,
     output: Option<&Path>,
     password: Option<&str>,
-) -> crate::Result<()> {
+) -> pdf_oxide::Result<()> {
     let mut doc = super::open_doc(file, password)?;
     let page_count = doc.page_count()?;
     drop(doc);
@@ -18,11 +18,11 @@ pub fn run(
             let s = s.trim();
             s.parse::<usize>()
                 .map_err(|_| {
-                    crate::Error::InvalidOperation(format!("Invalid page number: '{s}'"))
+                    pdf_oxide::Error::InvalidOperation(format!("Invalid page number: '{s}'"))
                 })
                 .and_then(|n| {
                     if n == 0 || n > page_count {
-                        Err(crate::Error::InvalidOperation(format!(
+                        Err(pdf_oxide::Error::InvalidOperation(format!(
                             "Page {n} out of range (1-{page_count})"
                         )))
                     } else {
@@ -30,10 +30,10 @@ pub fn run(
                     }
                 })
         })
-        .collect::<crate::Result<Vec<_>>>()?;
+        .collect::<pdf_oxide::Result<Vec<_>>>()?;
 
     if indices.len() != page_count {
-        return Err(crate::Error::InvalidOperation(format!(
+        return Err(pdf_oxide::Error::InvalidOperation(format!(
             "Order must list all {page_count} pages (got {})",
             indices.len()
         )));
@@ -43,7 +43,7 @@ pub fn run(
     let mut seen = vec![false; page_count];
     for &idx in &indices {
         if seen[idx] {
-            return Err(crate::Error::InvalidOperation(format!(
+            return Err(pdf_oxide::Error::InvalidOperation(format!(
                 "Page {} listed more than once",
                 idx + 1
             )));
