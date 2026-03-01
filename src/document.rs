@@ -2802,6 +2802,9 @@ impl PdfDocument {
         // spans on the same line and reverse the text within each run.
         Self::reverse_rtl_visual_order_runs(&mut spans);
 
+        // Filter out spans with NaN coordinates (invalid CTM calculations)
+        spans.retain(|s| s.bbox.x.is_finite() && s.bbox.y.is_finite());
+
         // Assemble text from spans, preserving reading order
         let mut text = String::with_capacity(spans.len() * 20); // estimate
         let mut prev_span: Option<&TextSpan> = None;
@@ -2840,16 +2843,23 @@ impl PdfDocument {
                     }
                 } else if gap < -1.0 {
                     // Significant overlap: span starts inside previous span's bbox.
-                    // This typically occurs when font-change merging overestimates
-                    // the previous span's width. Insert a space as word boundary.
                     let span_end_x = span.bbox.x + span.bbox.width;
-                    if span_end_x > prev_end_x + 0.5 {
-                        // Span extends beyond previous — it has new content, insert space
+                    let font_changed = prev.font_name != span.font_name;
+                    let fs = span.font_size.max(prev.font_size).max(6.0);
+
+                    if gap < -(fs * 20.0) {
+                        // Very large negative gap (200pt+): separate text region on same y-line
+                        // Common in slides where footer/label and body text share y-line
+                        if !text.ends_with('\n') {
+                            text.push('\n');
+                        }
+                    } else if font_changed && span_end_x > prev_end_x + 0.5 {
+                        // Font change with new content — insert space as word boundary
                         if !text.ends_with(' ') && !text.ends_with('\n') {
                             text.push(' ');
                         }
                     }
-                    // If span is fully contained, it was already skipped above
+                    // Same font small overlap: Td positioning within a word → no space
                 } else if Self::should_insert_space(prev, span) {
                     text.push(' ');
                 } else {
