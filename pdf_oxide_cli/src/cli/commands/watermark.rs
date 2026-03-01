@@ -3,6 +3,7 @@ use pdf_oxide::geometry::Rect;
 use pdf_oxide::writer::WatermarkAnnotation;
 use std::path::Path;
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     file: &Path,
     text: &str,
@@ -69,15 +70,21 @@ pub fn run(
     }
 
     let out_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
-        let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+        let stem = file
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output");
         Path::new(&format!("{stem}_watermarked.pdf")).to_path_buf()
     });
 
-    editor.save_with_options(&out_path, SaveOptions {
-        compress: true,
-        garbage_collect: true,
-        ..Default::default()
-    })?;
+    editor.save_with_options(
+        &out_path,
+        SaveOptions {
+            compress: true,
+            garbage_collect: true,
+            ..Default::default()
+        },
+    )?;
 
     eprintln!(
         "Added watermark '{}' to {} page(s) → {}",

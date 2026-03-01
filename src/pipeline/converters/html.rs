@@ -257,12 +257,13 @@ impl HtmlOutputConverter {
 
             // Check for paragraph break
             if let Some(prev) = prev_span {
-                if self.is_paragraph_break(span, prev) {
-                    if in_paragraph && !current_content.is_empty() {
-                        result.push_str(&format!("<p>{}</p>\n", current_content.trim()));
-                        current_content.clear();
-                        in_paragraph = false;
-                    }
+                if self.is_paragraph_break(span, prev)
+                    && in_paragraph
+                    && !current_content.is_empty()
+                {
+                    result.push_str(&format!("<p>{}</p>\n", current_content.trim()));
+                    current_content.clear();
+                    in_paragraph = false;
                 }
             }
 
@@ -347,7 +348,7 @@ impl HtmlOutputConverter {
         let mut html = String::from("<table>\n");
 
         // Determine header/body sections
-        let has_header = table.has_header || table.rows.first().map_or(false, |r| r.is_header);
+        let has_header = table.has_header || table.rows.first().is_some_and(|r| r.is_header);
         let header_end = if has_header {
             table
                 .rows
@@ -665,9 +666,7 @@ mod tests {
         let spans = vec![make_span("Hello", 0.0, 100.0, 12.0, FontWeight::Normal)];
 
         let result_convert = converter.convert(&spans, &config).unwrap();
-        let result_with_tables = converter
-            .convert_with_tables(&spans, &[], &config)
-            .unwrap();
+        let result_with_tables = converter.convert_with_tables(&spans, &[], &config).unwrap();
 
         assert_eq!(result_convert, result_with_tables);
     }

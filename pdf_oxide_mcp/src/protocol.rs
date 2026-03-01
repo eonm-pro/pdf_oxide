@@ -16,7 +16,7 @@ pub fn handle_message(line: &str) -> Option<String> {
                 "error": { "code": -32700, "message": format!("Parse error: {e}") }
             });
             return Some(resp.to_string());
-        }
+        },
     };
 
     let id = msg.get("id").cloned();
@@ -43,7 +43,7 @@ pub fn handle_message(line: &str) -> Option<String> {
         Ok(res) => json!({ "jsonrpc": "2.0", "id": id, "result": res }),
         Err((code, message)) => {
             json!({ "jsonrpc": "2.0", "id": id, "error": { "code": code, "message": message } })
-        }
+        },
     };
 
     Some(resp.to_string())
@@ -181,9 +181,7 @@ mod tests {
 
     #[test]
     fn test_initialized_notification_no_response() {
-        let resp = handle_message(
-            r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
-        );
+        let resp = handle_message(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#);
         assert!(resp.is_none());
     }
 
@@ -193,10 +191,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"bogus","arguments":{}}}"#,
         );
         assert_eq!(resp["error"]["code"], -32602);
-        assert!(resp["error"]["message"]
-            .as_str()
-            .unwrap()
-            .contains("bogus"));
+        assert!(resp["error"]["message"].as_str().unwrap().contains("bogus"));
     }
 
     #[test]
@@ -241,10 +236,7 @@ mod tests {
             r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"extract","arguments":{"file_path":"tests/fixtures/simple.pdf","output_path":"/tmp/out.txt","format":"csv"}}}"#,
         );
         assert_eq!(resp["error"]["code"], -32602);
-        assert!(resp["error"]["message"]
-            .as_str()
-            .unwrap()
-            .contains("csv"));
+        assert!(resp["error"]["message"].as_str().unwrap().contains("csv"));
     }
 
     #[test]

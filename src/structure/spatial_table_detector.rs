@@ -597,12 +597,7 @@ fn grid_to_extracted_table(grid: &GridStructure, spans: &[TextSpan]) -> Extracte
             }
         }
 
-        Some(crate::geometry::Rect::new(
-            min_x,
-            min_y,
-            max_x - min_x,
-            max_y - min_y,
-        ))
+        Some(crate::geometry::Rect::new(min_x, min_y, max_x - min_x, max_y - min_y))
     } else {
         None
     };

@@ -13,10 +13,7 @@ pub fn run(
 
     let page_indices = super::resolve_pages(pages, page_count)?;
 
-    let stem = file
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("page");
+    let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("page");
 
     let out_dir = output.unwrap_or_else(|| Path::new("."));
 
@@ -31,11 +28,14 @@ pub fn run(
         }
 
         let out_path = out_dir.join(format!("{}_page_{}.pdf", stem, page_idx + 1));
-        editor.save_with_options(&out_path, SaveOptions {
-            compress: true,
-            garbage_collect: true,
-            ..Default::default()
-        })?;
+        editor.save_with_options(
+            &out_path,
+            SaveOptions {
+                compress: true,
+                garbage_collect: true,
+                ..Default::default()
+            },
+        )?;
         eprintln!("Saved page {} to {}", page_idx + 1, out_path.display());
     }
 

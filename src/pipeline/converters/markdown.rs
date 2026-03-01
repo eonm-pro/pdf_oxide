@@ -200,11 +200,7 @@ impl MarkdownOutputConverter {
 
         // Determine header row index - use first row if has_header, or first is_header row
         let header_end = if table.has_header {
-            table
-                .rows
-                .iter()
-                .position(|r| !r.is_header)
-                .unwrap_or(1)
+            table.rows.iter().position(|r| !r.is_header).unwrap_or(1)
         } else {
             // Treat first row as header for markdown (markdown requires a header row)
             1
@@ -752,11 +748,7 @@ mod tests {
         table.add_row(data);
 
         let result = converter
-            .convert_with_tables(
-                &[span_before, span_in_table, span_after],
-                &[table],
-                &config,
-            )
+            .convert_with_tables(&[span_before, span_in_table, span_after], &[table], &config)
             .unwrap();
 
         assert!(result.contains("Before table"), "Should contain text before table");
@@ -772,9 +764,7 @@ mod tests {
         let spans = vec![make_span("Hello", 0.0, 100.0, 12.0, FontWeight::Normal)];
 
         let result_convert = converter.convert(&spans, &config).unwrap();
-        let result_with_tables = converter
-            .convert_with_tables(&spans, &[], &config)
-            .unwrap();
+        let result_with_tables = converter.convert_with_tables(&spans, &[], &config).unwrap();
 
         assert_eq!(result_convert, result_with_tables);
     }

@@ -13,7 +13,7 @@ fn main() {
             Err(e) => {
                 eprintln!("stdin read error: {e}");
                 break;
-            }
+            },
         };
 
         let trimmed = line.trim();

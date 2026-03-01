@@ -277,28 +277,18 @@ impl PdfImage {
                     let dynamic_image = self.to_dynamic_image()?;
                     let rgb = dynamic_image.to_rgb8();
                     encoder
-                        .write_image(
-                            rgb.as_raw(),
-                            self.width,
-                            self.height,
-                            image::ColorType::Rgb8,
-                        )
+                        .write_image(rgb.as_raw(), self.width, self.height, image::ColorType::Rgb8)
                         .map_err(|e| Error::Encode(format!("Failed to encode PNG: {}", e)))?;
                 }
-            }
+            },
             ImageData::Jpeg(_) => {
                 // JPEG data — decode then re-encode as PNG
                 let dynamic_image = self.to_dynamic_image()?;
                 let rgb = dynamic_image.to_rgb8();
                 encoder
-                    .write_image(
-                        rgb.as_raw(),
-                        self.width,
-                        self.height,
-                        image::ColorType::Rgb8,
-                    )
+                    .write_image(rgb.as_raw(), self.width, self.height, image::ColorType::Rgb8)
                     .map_err(|e| Error::Encode(format!("Failed to encode PNG: {}", e)))?;
-            }
+            },
         }
 
         Ok(buffer.into_inner())

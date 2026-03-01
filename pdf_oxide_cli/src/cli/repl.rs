@@ -1,8 +1,8 @@
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 
-use pdf_oxide::PdfDocument;
 use super::colors;
+use pdf_oxide::PdfDocument;
 
 struct ReplState {
     current_doc: Option<PdfDocument>,
@@ -22,11 +22,11 @@ impl ReplState {
     }
 
     fn ensure_doc(&mut self) -> pdf_oxide::Result<&mut PdfDocument> {
-        self.current_doc
-            .as_mut()
-            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
+        self.current_doc.as_mut().ok_or_else(|| {
+            pdf_oxide::Error::InvalidOperation(
                 "No PDF loaded. Use 'open <file>' first.".to_string(),
-            ))
+            )
+        })
     }
 }
 
@@ -59,11 +59,11 @@ pub fn enter(
         line.clear();
         match reader.read_line(&mut line) {
             Ok(0) => break, // EOF (Ctrl+D)
-            Ok(_) => {}
+            Ok(_) => {},
             Err(e) => {
                 eprintln!("{}", colors::error(&format!("Read error: {e}")));
                 break;
-            }
+            },
         }
 
         let input = line.trim();
@@ -80,7 +80,7 @@ pub fn enter(
             "help" | "?" | "h" => {
                 print_help();
                 Ok(())
-            }
+            },
             "open" | "o" | "load" => cmd_open(&mut state, args),
             "close" | "c" => cmd_close(&mut state),
             "text" | "t" => cmd_text(&mut state, args),
@@ -102,7 +102,7 @@ pub fn enter(
             _ => {
                 eprintln!("Unknown command: '{}'. Type 'help' for available commands.", cmd);
                 Ok(())
-            }
+            },
         };
 
         if let Err(e) = result {
@@ -172,7 +172,11 @@ fn cmd_close(state: &mut ReplState) -> pdf_oxide::Result<()> {
     Ok(())
 }
 
-fn with_doc(state: &mut ReplState, args: &str, f: impl FnOnce(&mut PdfDocument) -> pdf_oxide::Result<()>) -> pdf_oxide::Result<()> {
+fn with_doc(
+    state: &mut ReplState,
+    args: &str,
+    f: impl FnOnce(&mut PdfDocument) -> pdf_oxide::Result<()>,
+) -> pdf_oxide::Result<()> {
     if args.is_empty() {
         let doc = state.ensure_doc()?;
         f(doc)
@@ -227,9 +231,11 @@ fn cmd_info(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
         let path = state
             .current_file
             .as_ref()
-            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
-                "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
-            ))?
+            .ok_or_else(|| {
+                pdf_oxide::Error::InvalidOperation(
+                    "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
+                )
+            })?
             .clone();
         super::commands::info::run(&path, state.password.as_deref(), state.json)
     }
@@ -267,9 +273,11 @@ fn cmd_images(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
         let path = state
             .current_file
             .as_ref()
-            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
-                "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
-            ))?
+            .ok_or_else(|| {
+                pdf_oxide::Error::InvalidOperation(
+                    "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
+                )
+            })?
             .clone();
         super::commands::images::run(
             &path,
@@ -295,9 +303,11 @@ fn cmd_bookmarks(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
         let path = state
             .current_file
             .as_ref()
-            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
-                "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
-            ))?
+            .ok_or_else(|| {
+                pdf_oxide::Error::InvalidOperation(
+                    "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
+                )
+            })?
             .clone();
         super::commands::bookmarks::run(&path, state.password.as_deref(), state.json)
     }
@@ -305,14 +315,23 @@ fn cmd_bookmarks(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
 
 fn cmd_forms(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     if !args.is_empty() {
-        super::commands::forms::run(Path::new(args), None, None, None, state.password.as_deref(), state.json)
+        super::commands::forms::run(
+            Path::new(args),
+            None,
+            None,
+            None,
+            state.password.as_deref(),
+            state.json,
+        )
     } else {
         let path = state
             .current_file
             .as_ref()
-            .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
-                "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
-            ))?
+            .ok_or_else(|| {
+                pdf_oxide::Error::InvalidOperation(
+                    "No PDF loaded. Use 'open <file>' or provide a file path.".to_string(),
+                )
+            })?
             .clone();
         super::commands::forms::run(&path, None, None, None, state.password.as_deref(), state.json)
     }
@@ -320,12 +339,9 @@ fn cmd_forms(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
 
 /// Helper to get the current file path or error.
 fn require_file(state: &ReplState) -> pdf_oxide::Result<PathBuf> {
-    state
-        .current_file
-        .clone()
-        .ok_or_else(|| pdf_oxide::Error::InvalidOperation(
-            "No PDF loaded. Use 'open <file>' first.".to_string(),
-        ))
+    state.current_file.clone().ok_or_else(|| {
+        pdf_oxide::Error::InvalidOperation("No PDF loaded. Use 'open <file>' first.".to_string())
+    })
 }
 
 /// Simple flag parser for REPL args. Returns (positional_args, flags_map).
@@ -358,14 +374,28 @@ fn cmd_rotate(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
 
     let degrees: i32 = positional
         .first()
-        .ok_or_else(|| pdf_oxide::Error::InvalidOperation("Usage: rotate <degrees> [-o out.pdf] [--pages 1-3]".to_string()))?
+        .ok_or_else(|| {
+            pdf_oxide::Error::InvalidOperation(
+                "Usage: rotate <degrees> [-o out.pdf] [--pages 1-3]".to_string(),
+            )
+        })?
         .parse()
-        .map_err(|_| pdf_oxide::Error::InvalidOperation("Degrees must be a number (90, 180, 270, -90)".to_string()))?;
+        .map_err(|_| {
+            pdf_oxide::Error::InvalidOperation(
+                "Degrees must be a number (90, 180, 270, -90)".to_string(),
+            )
+        })?;
 
-    let output = flags.get("o").map(|s| PathBuf::from(s));
+    let output = flags.get("o").map(PathBuf::from);
     let pages = flags.get("pages").map(|s| s.as_str());
 
-    super::commands::rotate::run(&path, degrees, pages, output.as_deref(), state.password.as_deref())
+    super::commands::rotate::run(
+        &path,
+        degrees,
+        pages,
+        output.as_deref(),
+        state.password.as_deref(),
+    )
 }
 
 fn cmd_delete(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
@@ -373,7 +403,7 @@ fn cmd_delete(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let (_positional, flags) = parse_repl_args(args);
 
     let pages = flags.get("pages").map(|s| s.as_str());
-    let output = flags.get("o").map(|s| PathBuf::from(s));
+    let output = flags.get("o").map(PathBuf::from);
 
     super::commands::delete::run(&path, pages, output.as_deref(), state.password.as_deref())
 }
@@ -382,11 +412,11 @@ fn cmd_reorder(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (positional, flags) = parse_repl_args(args);
 
-    let order = positional
-        .first()
-        .ok_or_else(|| pdf_oxide::Error::InvalidOperation("Usage: reorder <3,1,2,5,4> [-o out.pdf]".to_string()))?;
+    let order = positional.first().ok_or_else(|| {
+        pdf_oxide::Error::InvalidOperation("Usage: reorder <3,1,2,5,4> [-o out.pdf]".to_string())
+    })?;
 
-    let output = flags.get("o").map(|s| PathBuf::from(s));
+    let output = flags.get("o").map(PathBuf::from);
 
     super::commands::reorder::run(&path, order, output.as_deref(), state.password.as_deref())
 }
@@ -400,11 +430,18 @@ fn cmd_metadata(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let subject = flags.get("subject").map(|s| s.as_str());
     let keywords = flags.get("keywords").map(|s| s.as_str());
     let strip = flags.contains_key("strip");
-    let output = flags.get("o").map(|s| PathBuf::from(s));
+    let output = flags.get("o").map(PathBuf::from);
 
     super::commands::metadata::run(
-        &path, title, author, subject, keywords, strip,
-        output.as_deref(), state.password.as_deref(), state.json,
+        &path,
+        title,
+        author,
+        subject,
+        keywords,
+        strip,
+        output.as_deref(),
+        state.password.as_deref(),
+        state.json,
     )
 }
 
@@ -412,20 +449,38 @@ fn cmd_watermark(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (positional, flags) = parse_repl_args(args);
 
-    let text = positional
-        .first()
-        .ok_or_else(|| pdf_oxide::Error::InvalidOperation("Usage: watermark <text> [-o out.pdf] [--pages 1-3]".to_string()))?;
+    let text = positional.first().ok_or_else(|| {
+        pdf_oxide::Error::InvalidOperation(
+            "Usage: watermark <text> [-o out.pdf] [--pages 1-3]".to_string(),
+        )
+    })?;
 
-    let opacity: f32 = flags.get("opacity").map(|s| s.parse().unwrap_or(0.3)).unwrap_or(0.3);
-    let rotation: f32 = flags.get("rotation").map(|s| s.parse().unwrap_or(45.0)).unwrap_or(45.0);
-    let font_size: f32 = flags.get("font-size").map(|s| s.parse().unwrap_or(48.0)).unwrap_or(48.0);
+    let opacity: f32 = flags
+        .get("opacity")
+        .map(|s| s.parse().unwrap_or(0.3))
+        .unwrap_or(0.3);
+    let rotation: f32 = flags
+        .get("rotation")
+        .map(|s| s.parse().unwrap_or(45.0))
+        .unwrap_or(45.0);
+    let font_size: f32 = flags
+        .get("font-size")
+        .map(|s| s.parse().unwrap_or(48.0))
+        .unwrap_or(48.0);
     let color = flags.get("color").map(|s| s.as_str());
     let pages = flags.get("pages").map(|s| s.as_str());
-    let output = flags.get("o").map(|s| PathBuf::from(s));
+    let output = flags.get("o").map(PathBuf::from);
 
     super::commands::watermark::run(
-        &path, text, opacity, rotation, font_size, color,
-        pages, output.as_deref(), state.password.as_deref(),
+        &path,
+        text,
+        opacity,
+        rotation,
+        font_size,
+        color,
+        pages,
+        output.as_deref(),
+        state.password.as_deref(),
     )
 }
 
@@ -435,21 +490,29 @@ fn cmd_flatten(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
 
     let forms = flags.contains_key("forms");
     let annotations = flags.contains_key("annotations");
-    let output = flags.get("o").map(|s| PathBuf::from(s));
+    let output = flags.get("o").map(PathBuf::from);
 
-    super::commands::flatten::run(&path, forms, annotations, output.as_deref(), state.password.as_deref())
+    super::commands::flatten::run(
+        &path,
+        forms,
+        annotations,
+        output.as_deref(),
+        state.password.as_deref(),
+    )
 }
 
 fn cmd_crop(state: &mut ReplState, args: &str) -> pdf_oxide::Result<()> {
     let path = require_file(state)?;
     let (positional, flags) = parse_repl_args(args);
 
-    let margins = positional
-        .first()
-        .ok_or_else(|| pdf_oxide::Error::InvalidOperation("Usage: crop <l,r,t,b> [-o out.pdf] [--pages 1-3]".to_string()))?;
+    let margins = positional.first().ok_or_else(|| {
+        pdf_oxide::Error::InvalidOperation(
+            "Usage: crop <l,r,t,b> [-o out.pdf] [--pages 1-3]".to_string(),
+        )
+    })?;
 
     let pages = flags.get("pages").map(|s| s.as_str());
-    let output = flags.get("o").map(|s| PathBuf::from(s));
+    let output = flags.get("o").map(PathBuf::from);
 
     super::commands::crop::run(&path, margins, pages, output.as_deref(), state.password.as_deref())
 }

@@ -1,10 +1,7 @@
 use pdf_oxide::editor::{DocumentEditor, EditableDocument};
 use std::path::Path;
 
-pub fn run(
-    files: &[std::path::PathBuf],
-    output: Option<&Path>,
-) -> pdf_oxide::Result<()> {
+pub fn run(files: &[std::path::PathBuf], output: Option<&Path>) -> pdf_oxide::Result<()> {
     if files.len() < 2 {
         return Err(pdf_oxide::Error::InvalidOperation(
             "Merge requires at least 2 PDF files".to_string(),

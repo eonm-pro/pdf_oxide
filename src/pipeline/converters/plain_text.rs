@@ -328,9 +328,7 @@ mod tests {
         let spans = vec![make_span("Hello", 0.0, 100.0)];
 
         let result_convert = converter.convert(&spans, &config).unwrap();
-        let result_with_tables = converter
-            .convert_with_tables(&spans, &[], &config)
-            .unwrap();
+        let result_with_tables = converter.convert_with_tables(&spans, &[], &config).unwrap();
 
         assert_eq!(result_convert, result_with_tables);
     }

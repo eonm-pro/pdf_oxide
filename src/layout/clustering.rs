@@ -71,7 +71,8 @@ pub fn cluster_chars_into_words(chars: &[TextChar], epsilon: f32) -> Vec<Vec<usi
 
     let mut indices: Vec<usize> = (0..chars.len()).collect();
     indices.sort_by(|&a, &b| {
-        let y_cmp = crate::utils::safe_float_cmp(chars[a].bbox.center().y, chars[b].bbox.center().y);
+        let y_cmp =
+            crate::utils::safe_float_cmp(chars[a].bbox.center().y, chars[b].bbox.center().y);
         if y_cmp != std::cmp::Ordering::Equal {
             return y_cmp;
         }
@@ -114,7 +115,9 @@ pub fn cluster_chars_into_words(chars: &[TextChar], epsilon: f32) -> Vec<Vec<usi
             if distance <= epsilon {
                 cluster.push(idx);
             } else {
-                cluster.sort_by(|&a, &b| crate::utils::safe_float_cmp(chars[a].bbox.x, chars[b].bbox.x));
+                cluster.sort_by(|&a, &b| {
+                    crate::utils::safe_float_cmp(chars[a].bbox.x, chars[b].bbox.x)
+                });
                 clusters.push(std::mem::take(&mut cluster));
                 cluster.push(idx);
             }
@@ -210,7 +213,8 @@ pub fn cluster_words_into_lines(words: &[TextBlock], epsilon_y: f32) -> Vec<Vec<
         if (words[idx].bbox.y - cluster_y).abs() <= epsilon_y {
             current_cluster.push(idx);
         } else {
-            current_cluster.sort_by(|&a, &b| crate::utils::safe_float_cmp(words[a].bbox.x, words[b].bbox.x));
+            current_cluster
+                .sort_by(|&a, &b| crate::utils::safe_float_cmp(words[a].bbox.x, words[b].bbox.x));
             clusters.push(std::mem::take(&mut current_cluster));
             current_cluster.push(idx);
             cluster_y = words[idx].bbox.y;
@@ -218,7 +222,8 @@ pub fn cluster_words_into_lines(words: &[TextBlock], epsilon_y: f32) -> Vec<Vec<
     }
 
     if !current_cluster.is_empty() {
-        current_cluster.sort_by(|&a, &b| crate::utils::safe_float_cmp(words[a].bbox.x, words[b].bbox.x));
+        current_cluster
+            .sort_by(|&a, &b| crate::utils::safe_float_cmp(words[a].bbox.x, words[b].bbox.x));
         clusters.push(current_cluster);
     }
 
@@ -250,7 +255,8 @@ pub fn cluster_chars_into_words(chars: &[TextChar], epsilon: f32) -> Vec<Vec<usi
     // Create indices sorted by Y (line grouping), then X (reading order)
     let mut indices: Vec<usize> = (0..chars.len()).collect();
     indices.sort_by(|&a, &b| {
-        let y_cmp = crate::utils::safe_float_cmp(chars[a].bbox.center().y, chars[b].bbox.center().y);
+        let y_cmp =
+            crate::utils::safe_float_cmp(chars[a].bbox.center().y, chars[b].bbox.center().y);
         if y_cmp != std::cmp::Ordering::Equal {
             return y_cmp;
         }
@@ -294,7 +300,9 @@ pub fn cluster_chars_into_words(chars: &[TextChar], epsilon: f32) -> Vec<Vec<usi
                 cluster.push(idx);
             } else {
                 // Sort cluster by X position (left-to-right)
-                cluster.sort_by(|&a, &b| crate::utils::safe_float_cmp(chars[a].bbox.x, chars[b].bbox.x));
+                cluster.sort_by(|&a, &b| {
+                    crate::utils::safe_float_cmp(chars[a].bbox.x, chars[b].bbox.x)
+                });
                 clusters.push(std::mem::take(&mut cluster));
                 cluster.push(idx);
             }

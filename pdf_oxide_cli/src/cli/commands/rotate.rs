@@ -12,10 +12,10 @@ pub fn run(
     let normalized = match degrees {
         90 | 180 | 270 | -90 => degrees,
         _ => {
-            return Err(pdf_oxide::Error::InvalidOperation(
-                format!("Invalid rotation: {degrees}. Must be 90, 180, 270, or -90"),
-            ));
-        }
+            return Err(pdf_oxide::Error::InvalidOperation(format!(
+                "Invalid rotation: {degrees}. Must be 90, 180, 270, or -90"
+            )));
+        },
     };
 
     let mut doc = super::open_doc(file, password)?;
@@ -31,21 +31,23 @@ pub fn run(
     }
 
     let out_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
-        let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+        let stem = file
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output");
         Path::new(&format!("{stem}_rotated.pdf")).to_path_buf()
     });
 
-    editor.save_with_options(&out_path, SaveOptions {
-        compress: true,
-        garbage_collect: true,
-        ..Default::default()
-    })?;
+    editor.save_with_options(
+        &out_path,
+        SaveOptions {
+            compress: true,
+            garbage_collect: true,
+            ..Default::default()
+        },
+    )?;
 
-    eprintln!(
-        "Rotated {} page(s) by {degrees}° → {}",
-        page_indices.len(),
-        out_path.display()
-    );
+    eprintln!("Rotated {} page(s) by {degrees}° → {}", page_indices.len(), out_path.display());
 
     Ok(())
 }

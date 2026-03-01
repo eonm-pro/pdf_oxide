@@ -1,5 +1,5 @@
-use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use pdf_oxide::editor::form_fields::FormFieldValue;
+use pdf_oxide::editor::{DocumentEditor, EditableDocument, SaveOptions};
 use std::path::Path;
 
 pub fn run(
@@ -16,7 +16,10 @@ pub fn run(
     // Export mode
     if let Some(format) = export {
         let export_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
-            let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+            let stem = file
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("output");
             Path::new(&format!("{stem}.{format}")).to_path_buf()
         });
 
@@ -39,15 +42,21 @@ pub fn run(
         }
 
         let out_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
-            let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+            let stem = file
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("output");
             Path::new(&format!("{stem}_filled.pdf")).to_path_buf()
         });
 
-        editor.save_with_options(&out_path, SaveOptions {
-            compress: true,
-            garbage_collect: true,
-            ..Default::default()
-        })?;
+        editor.save_with_options(
+            &out_path,
+            SaveOptions {
+                compress: true,
+                garbage_collect: true,
+                ..Default::default()
+            },
+        )?;
 
         eprintln!("Filled {} field(s) → {}", pairs.len(), out_path.display());
         return Ok(());

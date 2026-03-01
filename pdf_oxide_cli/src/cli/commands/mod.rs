@@ -1,24 +1,24 @@
-pub mod text;
-pub mod markdown;
-pub mod html;
-pub mod info;
-pub mod merge;
-pub mod split;
-pub mod create;
-pub mod compress;
-pub mod encrypt;
-pub mod decrypt;
-pub mod search;
-pub mod images;
-pub mod rotate;
-pub mod delete;
-pub mod reorder;
-pub mod metadata;
-pub mod watermark;
 pub mod bookmarks;
-pub mod flatten;
+pub mod compress;
+pub mod create;
 pub mod crop;
+pub mod decrypt;
+pub mod delete;
+pub mod encrypt;
+pub mod flatten;
 pub mod forms;
+pub mod html;
+pub mod images;
+pub mod info;
+pub mod markdown;
+pub mod merge;
+pub mod metadata;
+pub mod reorder;
+pub mod rotate;
+pub mod search;
+pub mod split;
+pub mod text;
+pub mod watermark;
 
 use pdf_oxide::PdfDocument;
 use std::path::Path;
@@ -33,13 +33,11 @@ pub fn open_doc(path: &Path, password: Option<&str>) -> pdf_oxide::Result<PdfDoc
 }
 
 /// Get page indices to process: either from --pages flag or all pages.
-pub fn resolve_pages(
-    pages_arg: Option<&str>,
-    page_count: usize,
-) -> pdf_oxide::Result<Vec<usize>> {
+pub fn resolve_pages(pages_arg: Option<&str>, page_count: usize) -> pdf_oxide::Result<Vec<usize>> {
     match pages_arg {
-        Some(ranges) => super::pages::parse_page_ranges(ranges)
-            .map_err(|e| pdf_oxide::Error::InvalidOperation(e)),
+        Some(ranges) => {
+            super::pages::parse_page_ranges(ranges).map_err(pdf_oxide::Error::InvalidOperation)
+        },
         None => Ok((0..page_count).collect()),
     }
 }
@@ -58,6 +56,6 @@ pub fn write_output(content: &str, output: Option<&Path>) -> pdf_oxide::Result<(
                 handle.write_all(b"\n")?;
             }
             Ok(())
-        }
+        },
     }
 }

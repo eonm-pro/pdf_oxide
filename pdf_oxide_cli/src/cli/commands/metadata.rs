@@ -1,6 +1,7 @@
 use pdf_oxide::editor::{DocumentEditor, DocumentInfo, EditableDocument, SaveOptions};
 use std::path::Path;
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     file: &Path,
     title: Option<&str>,
@@ -12,7 +13,8 @@ pub fn run(
     _password: Option<&str>,
     json: bool,
 ) -> pdf_oxide::Result<()> {
-    let is_write = strip || title.is_some() || author.is_some() || subject.is_some() || keywords.is_some();
+    let is_write =
+        strip || title.is_some() || author.is_some() || subject.is_some() || keywords.is_some();
 
     let mut editor = DocumentEditor::open(file)?;
 
@@ -83,15 +85,21 @@ pub fn run(
     }
 
     let out_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
-        let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+        let stem = file
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output");
         Path::new(&format!("{stem}_metadata.pdf")).to_path_buf()
     });
 
-    editor.save_with_options(&out_path, SaveOptions {
-        compress: true,
-        garbage_collect: true,
-        ..Default::default()
-    })?;
+    editor.save_with_options(
+        &out_path,
+        SaveOptions {
+            compress: true,
+            garbage_collect: true,
+            ..Default::default()
+        },
+    )?;
 
     eprintln!("Saved to {}", out_path.display());
 

@@ -1,11 +1,7 @@
 use pdf_oxide::outline::{Destination, OutlineItem};
 use std::path::Path;
 
-pub fn run(
-    file: &Path,
-    password: Option<&str>,
-    json: bool,
-) -> pdf_oxide::Result<()> {
+pub fn run(file: &Path, password: Option<&str>, json: bool) -> pdf_oxide::Result<()> {
     let mut doc = super::open_doc(file, password)?;
 
     let outline = doc.get_outline()?;
@@ -17,7 +13,7 @@ pub fn run(
             } else {
                 eprintln!("No bookmarks found in {}", file.display());
             }
-        }
+        },
         Some(items) => {
             if json {
                 let json_items = outline_to_json(&items);
@@ -28,7 +24,7 @@ pub fn run(
                     print_outline(item, 0);
                 }
             }
-        }
+        },
     }
 
     Ok(())

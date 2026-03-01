@@ -2742,9 +2742,7 @@ impl TextExtractor {
                 let b_y_rounded = b.bbox.y.round() as i32;
 
                 match b_y_rounded.cmp(&a_y_rounded) {
-                    std::cmp::Ordering::Equal => {
-                        crate::utils::safe_float_cmp(a.bbox.x, b.bbox.x)
-                    },
+                    std::cmp::Ordering::Equal => crate::utils::safe_float_cmp(a.bbox.x, b.bbox.x),
                     other => other,
                 }
             });

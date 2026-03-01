@@ -36,21 +36,23 @@ pub fn run(
     }
 
     let out_path = output.map(|p| p.to_path_buf()).unwrap_or_else(|| {
-        let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+        let stem = file
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output");
         Path::new(&format!("{stem}_trimmed.pdf")).to_path_buf()
     });
 
-    editor.save_with_options(&out_path, SaveOptions {
-        compress: true,
-        garbage_collect: true,
-        ..Default::default()
-    })?;
+    editor.save_with_options(
+        &out_path,
+        SaveOptions {
+            compress: true,
+            garbage_collect: true,
+            ..Default::default()
+        },
+    )?;
 
-    eprintln!(
-        "Deleted {} page(s) → {}",
-        sorted.len(),
-        out_path.display()
-    );
+    eprintln!("Deleted {} page(s) → {}", sorted.len(), out_path.display());
 
     Ok(())
 }

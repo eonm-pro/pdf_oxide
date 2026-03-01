@@ -21,7 +21,10 @@ pub fn run(args: &Value) -> Result<Value, (i32, String)> {
         .unwrap_or("text");
     let pages_str = args.get("pages").and_then(|v| v.as_str());
     let password = args.get("password").and_then(|v| v.as_str());
-    let images = args.get("images").and_then(|v| v.as_bool()).unwrap_or(false);
+    let images = args
+        .get("images")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let embed_images = args
         .get("embed_images")
         .and_then(|v| v.as_bool())
@@ -29,15 +32,12 @@ pub fn run(args: &Value) -> Result<Value, (i32, String)> {
 
     // Validate format
     if !matches!(format, "text" | "markdown" | "html") {
-        return Err((
-            -32602,
-            format!("Invalid format: {format}. Must be text, markdown, or html"),
-        ));
+        return Err((-32602, format!("Invalid format: {format}. Must be text, markdown, or html")));
     }
 
     // Open document
-    let mut doc = PdfDocument::open(file_path)
-        .map_err(|e| (-32603, format!("Failed to open PDF: {e}")))?;
+    let mut doc =
+        PdfDocument::open(file_path).map_err(|e| (-32603, format!("Failed to open PDF: {e}")))?;
 
     // Authenticate if password provided
     if let Some(pw) = password {
@@ -63,11 +63,7 @@ pub fn run(args: &Value) -> Result<Value, (i32, String)> {
         if idx >= page_count {
             return Err((
                 -32602,
-                format!(
-                    "Page {} out of range (document has {} pages)",
-                    idx + 1,
-                    page_count
-                ),
+                format!("Page {} out of range (document has {} pages)", idx + 1, page_count),
             ));
         }
     }
@@ -77,11 +73,15 @@ pub fn run(args: &Value) -> Result<Value, (i32, String)> {
         .parent()
         .unwrap_or(Path::new("."))
         .to_path_buf();
-    let mut opts = ConversionOptions::default();
-    opts.embed_images = embed_images;
-    if !embed_images {
-        opts.image_output_dir = Some(output_dir.to_string_lossy().into_owned());
-    }
+    let opts = ConversionOptions {
+        embed_images,
+        image_output_dir: if !embed_images {
+            Some(output_dir.to_string_lossy().into_owned())
+        } else {
+            None
+        },
+        ..Default::default()
+    };
 
     // Extract content
     let content = extract_pages(&mut doc, &page_indices, format, &opts)?;
@@ -113,14 +113,14 @@ pub fn run(args: &Value) -> Result<Value, (i32, String)> {
             match doc.extract_images_to_files(page_idx, &img_dir, None, Some(images_extracted + 1))
             {
                 Ok(refs) => images_extracted += refs.len(),
-                Err(e) => eprintln!("Warning: image extraction failed for page {}: {e}", page_idx + 1),
+                Err(e) => {
+                    eprintln!("Warning: image extraction failed for page {}: {e}", page_idx + 1)
+                },
             }
         }
     }
 
-    let file_size = fs::metadata(output_path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let file_size = fs::metadata(output_path).map(|m| m.len()).unwrap_or(0);
 
     let mut message = format!(
         "Extracted {} page(s) as {} to {} ({} bytes)",
@@ -148,15 +148,15 @@ fn extract_pages(
 
     for &idx in page_indices {
         let part = match format {
-            "text" => doc
-                .extract_text(idx)
-                .map_err(|e| (-32603, format!("Text extraction failed on page {}: {e}", idx + 1)))?,
-            "markdown" => doc
-                .to_markdown(idx, opts)
-                .map_err(|e| (-32603, format!("Markdown conversion failed on page {}: {e}", idx + 1)))?,
-            "html" => doc
-                .to_html(idx, opts)
-                .map_err(|e| (-32603, format!("HTML conversion failed on page {}: {e}", idx + 1)))?,
+            "text" => doc.extract_text(idx).map_err(|e| {
+                (-32603, format!("Text extraction failed on page {}: {e}", idx + 1))
+            })?,
+            "markdown" => doc.to_markdown(idx, opts).map_err(|e| {
+                (-32603, format!("Markdown conversion failed on page {}: {e}", idx + 1))
+            })?,
+            "html" => doc.to_html(idx, opts).map_err(|e| {
+                (-32603, format!("HTML conversion failed on page {}: {e}", idx + 1))
+            })?,
             _ => unreachable!(),
         };
         parts.push(part);
@@ -247,10 +247,7 @@ mod tests {
 
     #[test]
     fn test_parse_page_ranges_mixed() {
-        assert_eq!(
-            parse_page_ranges("1-3,7,10-12").unwrap(),
-            vec![0, 1, 2, 6, 9, 10, 11]
-        );
+        assert_eq!(parse_page_ranges("1-3,7,10-12").unwrap(), vec![0, 1, 2, 6, 9, 10, 11]);
     }
 
     #[test]

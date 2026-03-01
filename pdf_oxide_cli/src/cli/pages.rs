@@ -68,10 +68,7 @@ mod tests {
 
     #[test]
     fn test_mixed() {
-        assert_eq!(
-            parse_page_ranges("1-3,7,10-12").unwrap(),
-            vec![0, 1, 2, 6, 9, 10, 11]
-        );
+        assert_eq!(parse_page_ranges("1-3,7,10-12").unwrap(), vec![0, 1, 2, 6, 9, 10, 11]);
     }
 
     #[test]

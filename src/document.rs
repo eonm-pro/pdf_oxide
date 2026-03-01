@@ -6038,7 +6038,9 @@ impl PdfDocument {
                                 let all_mcids: Vec<u32> = table
                                     .rows
                                     .iter()
-                                    .flat_map(|r| r.cells.iter().flat_map(|c| c.mcids.iter().copied()))
+                                    .flat_map(|r| {
+                                        r.cells.iter().flat_map(|c| c.mcids.iter().copied())
+                                    })
                                     .collect();
                                 if !all_mcids.is_empty() {
                                     let mut min_x = f32::INFINITY;
@@ -6082,10 +6084,7 @@ impl PdfDocument {
         }
 
         // Strategy 2: Spatial detection (untagged PDFs)
-        let config = options
-            .table_detection_config
-            .clone()
-            .unwrap_or_default();
+        let config = options.table_detection_config.clone().unwrap_or_default();
         let tables = crate::structure::detect_tables_from_spans(spans, &config);
         if !tables.is_empty() {
             log::debug!(
@@ -6229,7 +6228,10 @@ impl PdfDocument {
         // Step 9: Extract and include images if enabled
         if options.include_images {
             let images = self
-                .extract_images_filtered(page_index, &ImageExtractFilter::markdown(options.max_image_pixels))
+                .extract_images_filtered(
+                    page_index,
+                    &ImageExtractFilter::markdown(options.max_image_pixels),
+                )
                 .unwrap_or_default();
             if !images.is_empty() {
                 let image_markdown = self.generate_image_markdown(&images, options, page_index)?;
@@ -6474,13 +6476,15 @@ impl PdfDocument {
 
         // Step 7: Use pipeline converter with tables
         let converter = HtmlOutputConverter::new();
-        let mut html =
-            converter.convert_with_tables(&ordered_spans, &tables, &pipeline_config)?;
+        let mut html = converter.convert_with_tables(&ordered_spans, &tables, &pipeline_config)?;
 
         // Step 8: Extract and embed images if enabled
         if options.include_images {
             let images = self
-                .extract_images_filtered(page_index, &ImageExtractFilter::markdown(options.max_image_pixels))
+                .extract_images_filtered(
+                    page_index,
+                    &ImageExtractFilter::markdown(options.max_image_pixels),
+                )
                 .unwrap_or_default();
             if !images.is_empty() {
                 let image_html = self.generate_image_html(&images, options, page_index)?;
@@ -7086,8 +7090,14 @@ impl PdfDocument {
                 // Pre-decompression filtering using dictionary metadata.
                 // These checks use Width/Height/ColorSpace from the XObject dictionary
                 // which are available WITHOUT decompressing the image stream data.
-                let w = xobject_dict.get("Width").and_then(|o| o.as_integer()).unwrap_or(0);
-                let h = xobject_dict.get("Height").and_then(|o| o.as_integer()).unwrap_or(0);
+                let w = xobject_dict
+                    .get("Width")
+                    .and_then(|o| o.as_integer())
+                    .unwrap_or(0);
+                let h = xobject_dict
+                    .get("Height")
+                    .and_then(|o| o.as_integer())
+                    .unwrap_or(0);
                 if w < filter.min_width || h < filter.min_height {
                     return Ok(images);
                 }
@@ -7095,13 +7105,15 @@ impl PdfDocument {
                     return Ok(images);
                 }
                 // Skip small Indexed colorspace images (Type3 font glyph fragments)
-                if filter.skip_indexed_small > 0 && (w < filter.skip_indexed_small || h < filter.skip_indexed_small) {
+                if filter.skip_indexed_small > 0
+                    && (w < filter.skip_indexed_small || h < filter.skip_indexed_small)
+                {
                     if let Some(cs_obj) = xobject_dict.get("ColorSpace") {
                         let is_indexed = match cs_obj {
                             Object::Name(n) => n == "Indexed",
                             Object::Array(arr) if !arr.is_empty() => {
                                 arr[0].as_name() == Some("Indexed")
-                            }
+                            },
                             _ => false,
                         };
                         if is_indexed {
@@ -7259,32 +7271,26 @@ impl PdfDocument {
         };
 
         // Decode form stream — check cache first to avoid repeated decompression
-        let stream_data =
-            if let Some(cached) = self.xobject_stream_cache.get(&xobject_ref) {
-                cached.as_ref().clone()
-            } else {
-                match self.decode_stream_with_encryption(xobject, xobject_ref) {
-                    Ok(data) => {
-                        const MAX_STREAM_CACHE_BYTES: usize = 50 * 1024 * 1024;
-                        if self.xobject_stream_cache_bytes + data.len()
-                            <= MAX_STREAM_CACHE_BYTES
-                        {
-                            self.xobject_stream_cache_bytes += data.len();
-                            self.xobject_stream_cache
-                                .insert(xobject_ref, std::sync::Arc::new(data.clone()));
-                        }
-                        data
-                    },
-                    Err(e) => {
-                        log::warn!(
-                            "Failed to decode Form XObject stream: {}, skipping",
-                            e
-                        );
-                        xobject_stack.pop();
-                        return Ok(Vec::new());
-                    },
-                }
-            };
+        let stream_data = if let Some(cached) = self.xobject_stream_cache.get(&xobject_ref) {
+            cached.as_ref().clone()
+        } else {
+            match self.decode_stream_with_encryption(xobject, xobject_ref) {
+                Ok(data) => {
+                    const MAX_STREAM_CACHE_BYTES: usize = 50 * 1024 * 1024;
+                    if self.xobject_stream_cache_bytes + data.len() <= MAX_STREAM_CACHE_BYTES {
+                        self.xobject_stream_cache_bytes += data.len();
+                        self.xobject_stream_cache
+                            .insert(xobject_ref, std::sync::Arc::new(data.clone()));
+                    }
+                    data
+                },
+                Err(e) => {
+                    log::warn!("Failed to decode Form XObject stream: {}, skipping", e);
+                    xobject_stack.pop();
+                    return Ok(Vec::new());
+                },
+            }
+        };
 
         // Parse operators using fast image-only path (skips text operators)
         let operators = match parse_content_stream_images_only(&stream_data) {
@@ -11325,8 +11331,8 @@ mod tests {
             5,
             XRefEntry {
                 entry_type: XRefEntryType::Compressed,
-                offset: 10,     // object stream number, NOT a byte offset
-                generation: 3,  // index within the stream
+                offset: 10,    // object stream number, NOT a byte offset
+                generation: 3, // index within the stream
                 in_use: true,
             },
         );

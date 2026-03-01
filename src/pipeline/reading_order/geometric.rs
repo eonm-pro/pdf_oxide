@@ -178,9 +178,8 @@ impl ReadingOrderStrategy for GeometricStrategy {
         for column in column_indices {
             // Sort spans within column by Y (top to bottom, descending Y = top first)
             let mut column_sorted = column;
-            column_sorted.sort_by(|&a, &b| {
-                crate::utils::safe_float_cmp(spans[b].bbox.y, spans[a].bbox.y)
-            });
+            column_sorted
+                .sort_by(|&a, &b| crate::utils::safe_float_cmp(spans[b].bbox.y, spans[a].bbox.y));
 
             for idx in column_sorted {
                 ordered.push(OrderedTextSpan::with_info(

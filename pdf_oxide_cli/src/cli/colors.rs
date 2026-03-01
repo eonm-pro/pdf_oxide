@@ -1,16 +1,16 @@
 use std::sync::OnceLock;
 
 // Brand colors (oxide.fyi)
-const RUST_ORANGE: &str = "\x1b[38;2;255;122;69m";   // #FF7A45
-const RUST_DARK: &str = "\x1b[38;2;212;84;28m";      // #D4541C
-const RUST_DEEP: &str = "\x1b[38;2;194;71;23m";      // #C24717
-const WHITE: &str = "\x1b[38;2;245;245;247m";         // #f5f5f7
+const RUST_ORANGE: &str = "\x1b[38;2;255;122;69m"; // #FF7A45
+const RUST_DARK: &str = "\x1b[38;2;212;84;28m"; // #D4541C
+const RUST_DEEP: &str = "\x1b[38;2;194;71;23m"; // #C24717
+const WHITE: &str = "\x1b[38;2;245;245;247m"; // #f5f5f7
 const RESET: &str = "\x1b[0m";
 const DIM: &str = "\x1b[2m";
 const BOLD: &str = "\x1b[1m";
 
 // Basic ANSI fallbacks
-const BASIC_ORANGE: &str = "\x1b[33m";  // yellow (closest to orange)
+const BASIC_ORANGE: &str = "\x1b[33m"; // yellow (closest to orange)
 const BASIC_WHITE: &str = "\x1b[37m";
 const BASIC_RED: &str = "\x1b[31m";
 

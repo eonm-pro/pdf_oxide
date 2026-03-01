@@ -268,8 +268,8 @@ fn test_bold_and_italic() {
 
 #[test]
 fn test_table_detection_simple_2x2() {
-    use pdf_oxide::structure::table_extractor::{ExtractedTable, TableRow, TableCell};
     use pdf_oxide::geometry::Rect;
+    use pdf_oxide::structure::table_extractor::{ExtractedTable, TableCell, TableRow};
 
     // Given: Pre-detected table (tables are now detected upstream, not inline)
     let mut table = ExtractedTable::new();

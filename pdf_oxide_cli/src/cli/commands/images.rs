@@ -14,22 +14,15 @@ pub fn run(
     let out_dir = output.unwrap_or_else(|| Path::new("."));
     std::fs::create_dir_all(out_dir)?;
 
-    let stem = file
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("img");
+    let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("img");
 
     let mut total_images = 0;
     let mut all_images = Vec::new();
 
     for &page_idx in &page_indices {
         let prefix = format!("{stem}_p{}", page_idx + 1);
-        let images = doc.extract_images_to_files(
-            page_idx,
-            out_dir,
-            Some(&prefix),
-            Some(total_images),
-        )?;
+        let images =
+            doc.extract_images_to_files(page_idx, out_dir, Some(&prefix), Some(total_images))?;
         total_images += images.len();
         all_images.extend(images);
     }
@@ -53,11 +46,7 @@ pub fn run(
         });
         super::write_output(&serde_json::to_string_pretty(&json_out).unwrap(), None)?;
     } else {
-        eprintln!(
-            "Extracted {} image(s) to {}",
-            total_images,
-            out_dir.display()
-        );
+        eprintln!("Extracted {} image(s) to {}", total_images, out_dir.display());
     }
 
     Ok(())

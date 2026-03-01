@@ -150,7 +150,10 @@ impl TableCell {
 ///
 /// # Returns
 /// * `Vec<&StructElem>` - Table elements found for the page
-pub fn find_table_elements(struct_tree: &crate::structure::types::StructTreeRoot, page_num: u32) -> Vec<&StructElem> {
+pub fn find_table_elements(
+    struct_tree: &crate::structure::types::StructTreeRoot,
+    page_num: u32,
+) -> Vec<&StructElem> {
     let mut tables = Vec::new();
     for elem in &struct_tree.root_elements {
         collect_table_elements(elem, page_num, &mut tables);
@@ -159,7 +162,11 @@ pub fn find_table_elements(struct_tree: &crate::structure::types::StructTreeRoot
 }
 
 /// Recursively collect Table elements that have content on the given page.
-fn collect_table_elements<'a>(elem: &'a StructElem, page_num: u32, tables: &mut Vec<&'a StructElem>) {
+fn collect_table_elements<'a>(
+    elem: &'a StructElem,
+    page_num: u32,
+    tables: &mut Vec<&'a StructElem>,
+) {
     if elem.struct_type == StructType::Table {
         if element_has_page_content(elem, page_num) {
             tables.push(elem);

@@ -57,51 +57,35 @@ fn dispatch(
     };
 
     let result = match cmd {
-        Command::Text { ref file } => {
-            commands::text::run(file, pages, output, password, json)
-        }
+        Command::Text { ref file } => commands::text::run(file, pages, output, password, json),
         Command::Markdown { ref file } => {
             commands::markdown::run(file, pages, output, password, json)
-        }
-        Command::Html { ref file } => {
-            commands::html::run(file, pages, output, password, json)
-        }
-        Command::Info { ref file } => {
-            commands::info::run(file, password, json)
-        }
-        Command::Merge { ref files } => {
-            commands::merge::run(files, output)
-        }
-        Command::Split { ref file } => {
-            commands::split::run(file, pages, output, password)
-        }
-        Command::Create { ref file, ref from } => {
-            commands::create::run(file, from, output)
-        }
-        Command::Compress { ref file } => {
-            commands::compress::run(file, output, password)
-        }
-        Command::Encrypt { .. } => {
-            commands::encrypt::run()
-        }
-        Command::Decrypt { ref file, ref password } => {
-            commands::decrypt::run(file, password, output)
-        }
-        Command::Search { ref file, ref pattern, ignore_case } => {
-            commands::search::run(file, pattern, ignore_case, pages, password, json)
-        }
-        Command::Images { ref file } => {
-            commands::images::run(file, pages, output, password, json)
-        }
+        },
+        Command::Html { ref file } => commands::html::run(file, pages, output, password, json),
+        Command::Info { ref file } => commands::info::run(file, password, json),
+        Command::Merge { ref files } => commands::merge::run(files, output),
+        Command::Split { ref file } => commands::split::run(file, pages, output, password),
+        Command::Create { ref file, ref from } => commands::create::run(file, from, output),
+        Command::Compress { ref file } => commands::compress::run(file, output, password),
+        Command::Encrypt { .. } => commands::encrypt::run(),
+        Command::Decrypt {
+            ref file,
+            ref password,
+        } => commands::decrypt::run(file, password, output),
+        Command::Search {
+            ref file,
+            ref pattern,
+            ignore_case,
+        } => commands::search::run(file, pattern, ignore_case, pages, password, json),
+        Command::Images { ref file } => commands::images::run(file, pages, output, password, json),
         Command::Rotate { ref file, degrees } => {
             commands::rotate::run(file, degrees, pages, output, password)
-        }
-        Command::Delete { ref file } => {
-            commands::delete::run(file, pages, output, password)
-        }
-        Command::Reorder { ref file, ref order } => {
-            commands::reorder::run(file, order, output, password)
-        }
+        },
+        Command::Delete { ref file } => commands::delete::run(file, pages, output, password),
+        Command::Reorder {
+            ref file,
+            ref order,
+        } => commands::reorder::run(file, order, output, password),
         Command::Metadata {
             ref file,
             ref title,
@@ -109,19 +93,17 @@ fn dispatch(
             ref subject,
             ref keywords,
             strip,
-        } => {
-            commands::metadata::run(
-                file,
-                title.as_deref(),
-                author.as_deref(),
-                subject.as_deref(),
-                keywords.as_deref(),
-                strip,
-                output,
-                password,
-                json,
-            )
-        }
+        } => commands::metadata::run(
+            file,
+            title.as_deref(),
+            author.as_deref(),
+            subject.as_deref(),
+            keywords.as_deref(),
+            strip,
+            output,
+            password,
+            json,
+        ),
         Command::Watermark {
             ref file,
             ref text,
@@ -129,46 +111,32 @@ fn dispatch(
             rotation,
             font_size,
             ref color,
-        } => {
-            commands::watermark::run(
-                file,
-                text,
-                opacity,
-                rotation,
-                font_size,
-                color.as_deref(),
-                pages,
-                output,
-                password,
-            )
-        }
-        Command::Bookmarks { ref file } => {
-            commands::bookmarks::run(file, password, json)
-        }
+        } => commands::watermark::run(
+            file,
+            text,
+            opacity,
+            rotation,
+            font_size,
+            color.as_deref(),
+            pages,
+            output,
+            password,
+        ),
+        Command::Bookmarks { ref file } => commands::bookmarks::run(file, password, json),
         Command::Flatten {
             ref file,
             forms,
             annotations,
-        } => {
-            commands::flatten::run(file, forms, annotations, output, password)
-        }
-        Command::Crop { ref file, ref margins } => {
-            commands::crop::run(file, margins, pages, output, password)
-        }
+        } => commands::flatten::run(file, forms, annotations, output, password),
+        Command::Crop {
+            ref file,
+            ref margins,
+        } => commands::crop::run(file, margins, pages, output, password),
         Command::Forms {
             ref file,
             ref fill,
             ref export,
-        } => {
-            commands::forms::run(
-                file,
-                fill.as_deref(),
-                export.as_deref(),
-                output,
-                password,
-                json,
-            )
-        }
+        } => commands::forms::run(file, fill.as_deref(), export.as_deref(), output, password, json),
     };
 
     if let Some(start) = start {
@@ -196,8 +164,6 @@ fn run_piped_stdin() -> pdf_oxide::Result<()> {
         let file = std::path::PathBuf::from(&path);
         commands::text::run(&file, None, None, None, false)
     } else {
-        Err(pdf_oxide::Error::InvalidOperation(
-            "No input received on stdin".to_string(),
-        ))
+        Err(pdf_oxide::Error::InvalidOperation("No input received on stdin".to_string()))
     }
 }

@@ -37,10 +37,7 @@ pub fn print_banner() {
         eprintln!("{colored_pdf}{colored_oxide}");
     }
 
-    let version_line = format!(
-        "{:>42}",
-        format!("v{}", pdf_oxide::VERSION)
-    );
+    let version_line = format!("{:>42}", format!("v{}", pdf_oxide::VERSION));
     eprintln!("{}", colors::dim(&version_line));
     eprintln!();
 }
