@@ -2,9 +2,12 @@
 name = "pdf_oxide_cli"
 version = "0.3.11"
 edition = "2021"
-description = "CLI for pdf-oxide — the fastest PDF toolkit"
+description = "CLI for pdf-oxide — the fastest PDF toolkit. 22 commands: text extraction, PDF to markdown, search, merge, split, images, compress, encrypt, watermark, forms, and more."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/yfedoseev/pdf_oxide"
+readme = "README.md"
+keywords = ["pdf", "cli", "text-extraction", "pdf-to-markdown", "pdf-toolkit"]
+categories = ["command-line-utilities", "text-processing"]
 
 [[bin]]
 name = "pdf-oxide"
