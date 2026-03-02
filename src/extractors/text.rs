@@ -2380,16 +2380,35 @@ impl TextExtractor {
             }
         }
 
-        // First pass: collect available TrueType cmaps keyed by stripped base font name
-        let mut cmap_donors: Vec<(String, crate::fonts::truetype_cmap::TrueTypeCMap)> = Vec::new();
+        // First pass: collect the BEST available TrueType cmap for each stripped base font name.
+        // When multiple subset variants of the same font exist (e.g., ABCDEF+Arial, GHIJKL+Arial),
+        // pick the cmap with the most glyph mappings — it has the best Unicode coverage.
+        // On equal coverage, prefer the lexicographically smallest base_font name as a
+        // deterministic tie-breaker (HashMap iteration order is randomized per-process).
+        let mut best_cmaps: std::collections::HashMap<
+            String,
+            (crate::fonts::truetype_cmap::TrueTypeCMap, String),
+        > = std::collections::HashMap::new();
         for font in self.fonts.values() {
             if let Some(cmap) = font.truetype_cmap() {
                 let stripped = strip_subset(&font.base_font).to_string();
-                cmap_donors.push((stripped, cmap.clone()));
+                let dominated =
+                    best_cmaps
+                        .get(&stripped)
+                        .is_none_or(|(existing, existing_name)| {
+                            match cmap.len().cmp(&existing.len()) {
+                                std::cmp::Ordering::Greater => true,
+                                std::cmp::Ordering::Equal => font.base_font < *existing_name,
+                                std::cmp::Ordering::Less => false,
+                            }
+                        });
+                if dominated {
+                    best_cmaps.insert(stripped, (cmap.clone(), font.base_font.clone()));
+                }
             }
         }
 
-        if cmap_donors.is_empty() {
+        if best_cmaps.is_empty() {
             return;
         }
 
@@ -2409,16 +2428,14 @@ impl TextExtractor {
             }
 
             let stripped = strip_subset(&font_arc.base_font);
-            for (donor_name, donor_cmap) in &cmap_donors {
-                if donor_name == stripped {
-                    log::info!(
-                        "Sharing TrueType cmap from donor font to '{}' (Identity-H, no embedded font)",
-                        font_arc.base_font
-                    );
-                    // Use Arc::make_mut + set_truetype_cmap for copy-on-write sharing
-                    Arc::make_mut(font_arc).set_truetype_cmap(Some(donor_cmap.clone()));
-                    break;
-                }
+            if let Some((donor_cmap, _)) = best_cmaps.get(stripped) {
+                log::info!(
+                    "Sharing TrueType cmap ({} entries) to '{}' (Identity-H, no embedded font)",
+                    donor_cmap.len(),
+                    font_arc.base_font
+                );
+                // Use Arc::make_mut + set_truetype_cmap for copy-on-write sharing
+                Arc::make_mut(font_arc).set_truetype_cmap(Some(donor_cmap.clone()));
             }
         }
     }

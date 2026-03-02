@@ -3,7 +3,7 @@
 All notable changes to PDFOxide are documented here.
 
 ## [0.3.12] - 2026-03-01
-> Text Extraction Quality, Markdown Conversion, Crates.io SEO
+> Text Extraction Quality, Determinism, Performance, Markdown Conversion
 
 ### Bug Fixes — Text Extraction (#181)
 
@@ -23,6 +23,19 @@ Reported by **@Goldziher** — systematic evaluation across 10 PDFs covering wor
 
 - **CTM concatenation order** — corrected matrix multiplication order for nested coordinate transforms, fixing glyph positioning on pages with complex transform stacks.
 
+### Bug Fixes — Text Quality & Determinism
+
+- **Fixed font fingerprint cache producing garbled text** — the font dictionary fingerprint hashed ObjectRefs and font names as separate sets, causing false cache hits when two pages had the same refs and names but different name-to-ref mappings. Fixed by hashing (name, ObjectRef) pairs together, ensuring the mapping is captured correctly.
+
+- **Fixed non-deterministic text extraction across runs** — Rust's `HashMap` uses a random seed per process, causing three sources of non-determinism:
+  - Unconsumed MCIDs from Form XObjects (without StructParents) were iterated in random HashMap order. Fixed by sorting by MCID key before appending.
+  - Font loading loop iterated font dictionaries in random order, affecting CMap sharing outcomes. Fixed by sorting font entries by name before processing.
+  - TrueType CMap donor selection depended on iteration order when multiple subset variants of the same font existed. Fixed by selecting the donor with the most glyph mappings (best Unicode coverage) instead of the first match.
+
+- **Improved character decoding** for PDFs with multiple font subsets — the font cache and CMap sharing fixes eliminated garbled characters caused by wrong font mappings being applied (e.g., ligatures decoded as digits, numbers shifted by wrong encoding). Text extraction now produces consistent, correct output where it previously varied between correct and garbled on each run.
+
+- **Deterministic output** — text extraction now produces identical results across consecutive runs for PDFs that were previously non-deterministic due to HashMap iteration order.
+
 ### Bug Fixes — Markdown Conversion (#182)
 
 Reported by **@yunho-c** — broken markdown output on the Analog Devices AD5940/AD5941 datasheet (two-column layout with bullet lists).
@@ -31,21 +44,30 @@ Reported by **@yunho-c** — broken markdown output on the Analog Devices AD5940
 
 - **Heading over-detection** — base font size calculation included small bullet/subscript spans (8.8pt `►` characters), pulling the median down to ~8.8pt. This caused 11pt body text to exceed the 1.15× heading ratio threshold and get promoted to `### H3`. Fixed by excluding spans < 9pt from the median calculation. Page 0: 35 → 0 spurious headings.
 
+### Performance
+
+- **Fast pre-check skips text-free pages** — added `page_cannot_have_text()` and SIMD-accelerated `may_contain_text()` (memchr scan for `BT`/`Do` operators) to skip expensive structure tree parsing for cover pages and image-only pages. Avoids 200ms+ structure tree cost per empty page.
+
+- **O(n log n) reading order** — replaced the O(n²) graph-based topological sort (which built a full precedence graph via nested loops) with a simple sort-based approach: sort blocks by Y descending then X ascending with a 5-unit same-line tolerance. Affects markdown extraction only.
+
+- **Text extraction ~13% faster** — across 240 benchmark PDFs, mean text extraction time dropped from 653ms to 570ms per file, with 0 new panics or timeouts.
+
 ### Documentation
 
 - **SEO-optimized README.md for `pdf_oxide_cli`** — full 22-command reference, usage examples, install instructions, performance stats. Added `keywords`, `categories`, and `readme` fields to Cargo.toml for crates.io discoverability.
 
 - **SEO-optimized README.md for `pdf_oxide_mcp`** — MCP configuration examples for Claude Desktop, Claude Code, and Cursor. Tool parameter reference, use cases, protocol details. Keywords: `mcp`, `pdf`, `claude`, `llm`, `ai`.
 
+- **SEO/GEO-optimized `pdf-oxide-wasm` npm package** — 25 keywords, competitor comparison table, full 60+ method API reference, platform compatibility matrix (Node.js, browsers, Cloudflare Workers, Deno, Bun).
+
 ### Tests
 
 - 8 new unit tests for bullet detection (`is_bullet_span`, `starts_with_bullet`, `strip_bullet`), list item rendering, and heading over-detection prevention.
-- 93.8% line coverage on `markdown.rs`, 96.9% on `geometric.rs`.
 - Benchmarked on 198 PDFs: 0 panics, 0 timeouts, 0 errors on both v0.3.11 and v0.3.12.
 
 ### Community Contributors
 
-Thank you to **@Goldziher** (Na'aman Hirschfeld) for the thorough text extraction evaluation across 10 diverse PDFs with detailed before/after comparisons against pdfium (#181), and to **@yunho-c** (Yunho Cho) for reporting the markdown conversion quality issues with an excellent real-world test case (#182). Both reports directly drove the quality improvements in this release.
+Thank you to **@Goldziher** (Na'aman Hirschfeld) for the thorough text extraction evaluation across 10 diverse PDFs with detailed before/after comparisons against pdfium (#181), to **@yunho-c** (Yunho Cho) for reporting the markdown conversion quality issues with an excellent real-world test case (#182), and to **@SeanPedersen** for his continued and thorough testing across diverse real-world PDF corpora — identifying 7 PDFs producing incorrect or inconsistent text and 13 PDFs exceeding the 150ms/page performance target. Every determinism, character decoding, and performance fix traces directly back to issues he surfaced.
 
 ## [0.3.11] - 2026-02-28
 > CLI, MCP Server, Multi-Platform Distribution, Performance

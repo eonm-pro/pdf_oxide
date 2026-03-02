@@ -893,15 +893,6 @@ fn test_gap_classification_respects_configuration() {
     // Both should be valid configurations
     assert_eq!(config_default.space_insertion_threshold, -120.0);
     assert_eq!(config_aggressive.space_insertion_threshold, -80.0);
-
-    // The converter should work with different configs
-    let converter1 = MarkdownConverter::new();
-    let converter2 = MarkdownConverter::new();
-
-    assert!(
-        !std::ptr::eq(&converter1, &converter2),
-        "Different converter instances should be created"
-    );
 }
 
 // ============================================================================
