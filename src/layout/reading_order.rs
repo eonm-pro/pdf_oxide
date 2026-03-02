@@ -41,12 +41,20 @@ pub fn graph_based_reading_order(blocks: &[TextBlock]) -> Vec<usize> {
         let ay = blocks[a].bbox.top();
         let by = blocks[b].bbox.top();
 
-        if (ay - by).abs() < y_tolerance {
+        let primary = if (ay - by).abs() < y_tolerance {
             // Same line: sort left-to-right (X ascending)
             crate::utils::safe_float_cmp(blocks[a].bbox.left(), blocks[b].bbox.left())
         } else {
             // Different lines: sort top-to-bottom (Y descending in PDF coords)
             crate::utils::safe_float_cmp(by, ay)
+        };
+
+        // Tie-break by original index for deterministic ordering
+        // when blocks have identical positions.
+        if primary == std::cmp::Ordering::Equal {
+            a.cmp(&b)
+        } else {
+            primary
         }
     });
 
