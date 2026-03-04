@@ -34,7 +34,9 @@ use wasm_bindgen::prelude::*;
 use crate::api::PdfBuilder;
 use crate::converters::ConversionOptions;
 use crate::document::PdfDocument;
-use crate::editor::DocumentEditor;
+use crate::editor::{
+    DocumentEditor, EncryptionAlgorithm, EncryptionConfig, Permissions, SaveOptions,
+};
 use crate::search::{SearchOptions, TextSearcher};
 
 // ============================================================================

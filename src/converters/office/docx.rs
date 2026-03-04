@@ -243,7 +243,9 @@ impl DocxConverter {
                 },
                 Ok(Event::Text(e)) => {
                     if in_text && in_run {
-                        current_run.text.push_str(&e.xml_content().unwrap_or_default());
+                        current_run
+                            .text
+                            .push_str(&e.xml_content().unwrap_or_default());
                     }
                 },
                 Ok(Event::Eof) => break,
