@@ -1002,6 +1002,20 @@ impl WasmPdfPageRegion {
             .map_err(|e| JsValue::from_str(&format!("Failed to extract text: {}", e)))
     }
 
+    /// Extract character-level data from this region.
+    #[wasm_bindgen(js_name = "extractChars")]
+    pub fn extract_chars(&mut self) -> Result<JsValue, JsValue> {
+        self.doc.extract_chars(
+            self.page_index,
+            Some(vec![
+                self.region.x,
+                self.region.y,
+                self.region.width,
+                self.region.height,
+            ]),
+        )
+    }
+
     /// Extract words from this region.
     #[wasm_bindgen(js_name = "extractWords")]
     pub fn extract_words(&mut self) -> Result<JsValue, JsValue> {
@@ -1061,7 +1075,43 @@ impl WasmPdfPageRegion {
     /// Extract vector paths from this region.
     #[wasm_bindgen(js_name = "extractPaths")]
     pub fn extract_paths(&mut self) -> Result<JsValue, JsValue> {
-        self.doc.extract_paths(self.page_index)
+        self.doc.extract_paths(
+            self.page_index,
+            Some(vec![
+                self.region.x,
+                self.region.y,
+                self.region.width,
+                self.region.height,
+            ]),
+        )
+    }
+
+    /// Extract rectangles from this region.
+    #[wasm_bindgen(js_name = "extractRects")]
+    pub fn extract_rects(&mut self) -> Result<JsValue, JsValue> {
+        self.doc.extract_rects(
+            self.page_index,
+            Some(vec![
+                self.region.x,
+                self.region.y,
+                self.region.width,
+                self.region.height,
+            ]),
+        )
+    }
+
+    /// Extract straight lines from this region.
+    #[wasm_bindgen(js_name = "extractLines")]
+    pub fn extract_lines(&mut self) -> Result<JsValue, JsValue> {
+        self.doc.extract_lines(
+            self.page_index,
+            Some(vec![
+                self.region.x,
+                self.region.y,
+                self.region.width,
+                self.region.height,
+            ]),
+        )
     }
 }
 
