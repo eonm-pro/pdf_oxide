@@ -147,7 +147,17 @@ fn dispatch(
             ref file,
             ref fill,
             ref export,
-        } => commands::forms::run(file, fill.as_deref(), export.as_deref(), output, password, json),
+            ref area,
+        } => commands::forms::run(
+            file,
+            fill.as_deref(),
+            export.as_deref(),
+            area.as_deref(),
+            pages,
+            output,
+            password,
+            json,
+        ),
         Command::Render {
             ref file,
             dpi,
@@ -179,7 +189,7 @@ fn run_piped_stdin() -> pdf_oxide::Result<()> {
             ));
         }
         let file = std::path::PathBuf::from(&path);
-        commands::text::run(&file, None, None, None, false)
+        commands::text::run(&file, "plain", None, None, None, None, false)
     } else {
         Err(pdf_oxide::Error::InvalidOperation("No input received on stdin".to_string()))
     }

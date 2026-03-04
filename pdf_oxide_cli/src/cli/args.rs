@@ -276,6 +276,10 @@ pub enum Command {
         /// Export form data (fdf or xfdf)
         #[arg(long, value_parser = ["fdf", "xfdf"])]
         export: Option<String>,
+
+        /// Specific area to filter fields by as x,y,width,height (points)
+        #[arg(long)]
+        area: Option<String>,
     },
 
     /// Render PDF pages to images (PNG/JPEG)
