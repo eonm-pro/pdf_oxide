@@ -196,9 +196,12 @@ impl PyPdfDocument {
     ///     threshold (float, optional): Fraction of pages (0.0-1.0) where text must repeat (heuristic mode).
     #[pyo3(signature = (threshold=0.8))]
     fn remove_headers(&mut self, threshold: f32) -> PyResult<usize> {
-        self.inner
+        let count = self.inner
             .remove_headers(threshold)
-            .map_err(|e| PyRuntimeError::new_err(format!("Header removal failed: {}", e)))
+            .map_err(|e| PyRuntimeError::new_err(format!("Header removal failed: {}", e)))?;
+        
+        self.sync_editor_erasures()?;
+        Ok(count)
     }
 
     /// Identify and remove footers.
@@ -210,9 +213,12 @@ impl PyPdfDocument {
     ///     threshold (float, optional): Fraction of pages (0.0-1.0) where text must repeat (heuristic mode).
     #[pyo3(signature = (threshold=0.8))]
     fn remove_footers(&mut self, threshold: f32) -> PyResult<usize> {
-        self.inner
+        let count = self.inner
             .remove_footers(threshold)
-            .map_err(|e| PyRuntimeError::new_err(format!("Footer removal failed: {}", e)))
+            .map_err(|e| PyRuntimeError::new_err(format!("Footer removal failed: {}", e)))?;
+        
+        self.sync_editor_erasures()?;
+        Ok(count)
     }
 
     /// Identify and remove both headers and footers.
@@ -224,9 +230,25 @@ impl PyPdfDocument {
     ///     threshold (float, optional): Fraction of pages (0.0-1.0) where text must repeat (heuristic mode).
     #[pyo3(signature = (threshold=0.8))]
     fn remove_artifacts(&mut self, threshold: f32) -> PyResult<usize> {
-        self.inner
+        let count = self.inner
             .remove_artifacts(threshold)
-            .map_err(|e| PyRuntimeError::new_err(format!("Artifact removal failed: {}", e)))
+            .map_err(|e| PyRuntimeError::new_err(format!("Artifact removal failed: {}", e)))?;
+        
+        self.sync_editor_erasures()?;
+        Ok(count)
+    }
+
+    /// Helper to synchronize erasures from inner document to editor.
+    fn sync_editor_erasures(&mut self) -> PyResult<()> {
+        if let Some(ref mut editor) = self.editor {
+            for (page, regions) in self.inner.erase_regions.iter() {
+                editor.clear_erase_regions(*page);
+                for rect in regions {
+                    let _ = editor.erase_region(*page, [rect.x, rect.y, rect.width, rect.height]);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Replace existing header content with new text.
@@ -238,9 +260,23 @@ impl PyPdfDocument {
     ///     page (int): Page index (0-based)
     ///     new_text (str): Replacement text
     fn edit_header(&mut self, page: usize, new_text: &str) -> PyResult<()> {
+        // Ensure editor is active so we can track the addition even if erasure is empty
+        self.ensure_editor()?;
+
         self.inner
             .edit_header(page, new_text)
-            .map_err(|e| PyRuntimeError::new_err(format!("Failed to edit header: {}", e)))
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to edit header: {}", e)))?;
+
+        // Also update editor if it exists
+        if let Some(ref mut editor) = self.editor {
+            editor.clear_erase_regions(page);
+            if let Some(regions) = self.inner.erase_regions.get(&page) {
+                for rect in regions {
+                    let _ = editor.erase_region(page, [rect.x, rect.y, rect.width, rect.height]);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Replace existing footer content with new text.
@@ -252,9 +288,23 @@ impl PyPdfDocument {
     ///     page (int): Page index (0-based)
     ///     new_text (str): Replacement text
     fn edit_footer(&mut self, page: usize, new_text: &str) -> PyResult<()> {
+        // Ensure editor is active so we can track the addition even if erasure is empty
+        self.ensure_editor()?;
+
         self.inner
             .edit_footer(page, new_text)
-            .map_err(|e| PyRuntimeError::new_err(format!("Failed to edit footer: {}", e)))
+            .map_err(|e| PyRuntimeError::new_err(format!("Failed to edit footer: {}", e)))?;
+
+        // Also update editor if it exists
+        if let Some(ref mut editor) = self.editor {
+            editor.clear_erase_regions(page);
+            if let Some(regions) = self.inner.erase_regions.get(&page) {
+                for rect in regions {
+                    let _ = editor.erase_region(page, [rect.x, rect.y, rect.width, rect.height]);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Replace both header and footer content with new text.
@@ -826,13 +876,31 @@ impl PyPdfDocument {
     fn save(&mut self, path: &str) -> PyResult<()> {
         use crate::editor::EditableDocument;
 
+        // Ensure we have an editor if there are pending erasures
+        if self.editor.is_none() && !self.inner.erase_regions.is_empty() {
+            let editor = RustDocumentEditor::open(&self.path)
+                .map_err(|e| PyRuntimeError::new_err(format!("Failed to open editor: {}", e)))?;
+            self.editor = Some(editor);
+        }
+
+        // Sync erasures if editor is active
+        if let Some(ref mut editor) = self.editor {
+            for (page, regions) in self.inner.erase_regions.iter() {
+                editor.clear_erase_regions(*page);
+                for rect in regions {
+                    let _ = editor.erase_region(*page, [rect.x, rect.y, rect.width, rect.height]);
+                }
+            }
+        }
+
+        // Save if we have an editor (it might have erasures or other edits)
         if let Some(ref mut editor) = self.editor {
             editor
                 .save(path)
                 .map_err(|e| PyIOError::new_err(format!("Failed to save PDF: {}", e)))
         } else {
             Err(PyRuntimeError::new_err(
-                "No modifications to save. Use page() and set_text() first.",
+                "No modifications to save. Use page(), remove_headers(), or edit_header() first.",
             ))
         }
     }
