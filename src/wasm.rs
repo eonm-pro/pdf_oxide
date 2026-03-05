@@ -1875,7 +1875,7 @@ impl WasmPdfDocument {
         urx: f32,
         ury: f32,
     ) -> Result<(), JsValue> {
-        // Mark in inner document for extraction filtering (v0.3.15)
+        // Mark in inner document for extraction filtering
         self.inner
             .lock()
             .map_err(|_| JsValue::from_str("Mutex lock failed"))?
@@ -1904,7 +1904,7 @@ impl WasmPdfDocument {
             return Err(JsValue::from_str("rects must have a length that is a multiple of 4"));
         }
 
-        // Mark all regions in inner document (v0.3.15)
+        // Mark all regions in inner document
         let mut inner = self.inner.lock().map_err(|_| JsValue::from_str("Mutex lock failed"))?;
         for chunk in rects.chunks_exact(4) {
             let (llx, lly, urx, ury) = (chunk[0], chunk[1], chunk[2], chunk[3]);
@@ -1931,7 +1931,7 @@ impl WasmPdfDocument {
     /// Clear all pending erase operations for a page.
     #[wasm_bindgen(js_name = "clearEraseRegions")]
     pub fn clear_erase_regions(&mut self, page_index: usize) -> Result<(), JsValue> {
-        // Clear inner document regions (v0.3.15)
+        // Clear inner document regions
         self.inner
             .lock()
             .map_err(|_| JsValue::from_str("Mutex lock failed"))?
