@@ -5273,7 +5273,11 @@ impl PyHFStyle {
     }
 
     /// Set the font and size.
-    fn font<'a>(mut slf: PyRefMut<'a, Self>, name: &str, size: f32) -> PyResult<PyRefMut<'a, Self>> {
+    fn font<'a>(
+        mut slf: PyRefMut<'a, Self>,
+        name: &str,
+        size: f32,
+    ) -> PyResult<PyRefMut<'a, Self>> {
         slf.inner = slf.inner.clone().font(name, size);
         Ok(slf)
     }
@@ -5285,7 +5289,12 @@ impl PyHFStyle {
     }
 
     /// Set text color (RGB, 0.0-1.0).
-    fn color<'a>(mut slf: PyRefMut<'a, Self>, r: f32, g: f32, b: f32) -> PyResult<PyRefMut<'a, Self>> {
+    fn color<'a>(
+        mut slf: PyRefMut<'a, Self>,
+        r: f32,
+        g: f32,
+        b: f32,
+    ) -> PyResult<PyRefMut<'a, Self>> {
         slf.inner = slf.inner.clone().color(r, g, b);
         Ok(slf)
     }
@@ -5350,7 +5359,10 @@ impl PyHeaderFooter {
     }
 
     /// Set the default style.
-    fn with_style<'a>(mut slf: PyRefMut<'a, Self>, style: &PyHFStyle) -> PyResult<PyRefMut<'a, Self>> {
+    fn with_style<'a>(
+        mut slf: PyRefMut<'a, Self>,
+        style: &PyHFStyle,
+    ) -> PyResult<PyRefMut<'a, Self>> {
         slf.inner = slf.inner.clone().with_style(style.inner.clone());
         Ok(slf)
     }
@@ -5379,13 +5391,19 @@ impl PyPageTemplate {
     }
 
     /// Set the header.
-    fn header<'a>(mut slf: PyRefMut<'a, Self>, header: &PyHeaderFooter) -> PyResult<PyRefMut<'a, Self>> {
+    fn header<'a>(
+        mut slf: PyRefMut<'a, Self>,
+        header: &PyHeaderFooter,
+    ) -> PyResult<PyRefMut<'a, Self>> {
         slf.inner = slf.inner.clone().header(header.inner.clone());
         Ok(slf)
     }
 
     /// Set the footer.
-    fn footer<'a>(mut slf: PyRefMut<'a, Self>, footer: &PyHeaderFooter) -> PyResult<PyRefMut<'a, Self>> {
+    fn footer<'a>(
+        mut slf: PyRefMut<'a, Self>,
+        footer: &PyHeaderFooter,
+    ) -> PyResult<PyRefMut<'a, Self>> {
         slf.inner = slf.inner.clone().footer(footer.inner.clone());
         Ok(slf)
     }
@@ -5397,13 +5415,19 @@ impl PyPageTemplate {
     }
 
     /// Set a different header for the first page.
-    fn first_page_header<'a>(mut slf: PyRefMut<'a, Self>, header: &PyHeaderFooter) -> PyResult<PyRefMut<'a, Self>> {
+    fn first_page_header<'a>(
+        mut slf: PyRefMut<'a, Self>,
+        header: &PyHeaderFooter,
+    ) -> PyResult<PyRefMut<'a, Self>> {
         slf.inner = slf.inner.clone().first_page_header(header.inner.clone());
         Ok(slf)
     }
 
     /// Set a different footer for the first page.
-    fn first_page_footer<'a>(mut slf: PyRefMut<'a, Self>, footer: &PyHeaderFooter) -> PyResult<PyRefMut<'a, Self>> {
+    fn first_page_footer<'a>(
+        mut slf: PyRefMut<'a, Self>,
+        footer: &PyHeaderFooter,
+    ) -> PyResult<PyRefMut<'a, Self>> {
         slf.inner = slf.inner.clone().first_page_footer(footer.inner.clone());
         Ok(slf)
     }

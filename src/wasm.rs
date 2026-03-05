@@ -1879,10 +1879,7 @@ impl WasmPdfDocument {
         self.inner
             .lock()
             .map_err(|_| JsValue::from_str("Mutex lock failed"))?
-            .erase_region(
-                page_index,
-                crate::geometry::Rect::new(llx, lly, urx - llx, ury - lly),
-            )
+            .erase_region(page_index, crate::geometry::Rect::new(llx, lly, urx - llx, ury - lly))
             .map_err(|e| JsValue::from_str(&format!("Failed to mark region: {}", e)))?;
 
         let editor_arc = self.ensure_editor()?;
@@ -1905,13 +1902,18 @@ impl WasmPdfDocument {
         }
 
         // Mark all regions in inner document
-        let mut inner = self.inner.lock().map_err(|_| JsValue::from_str("Mutex lock failed"))?;
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|_| JsValue::from_str("Mutex lock failed"))?;
         for chunk in rects.chunks_exact(4) {
             let (llx, lly, urx, ury) = (chunk[0], chunk[1], chunk[2], chunk[3]);
-            inner.erase_region(
-                page_index,
-                crate::geometry::Rect::new(llx, lly, urx - llx, ury - lly),
-            ).map_err(|e| JsValue::from_str(&format!("Failed to mark region: {}", e)))?;
+            inner
+                .erase_region(
+                    page_index,
+                    crate::geometry::Rect::new(llx, lly, urx - llx, ury - lly),
+                )
+                .map_err(|e| JsValue::from_str(&format!("Failed to mark region: {}", e)))?;
         }
         drop(inner);
 
