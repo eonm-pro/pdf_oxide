@@ -19,6 +19,8 @@
 //! markdown = doc.to_markdown(0, detect_headings=True)
 //! ```
 
+use std::path::PathBuf;
+
 use pyo3::exceptions::{PyIOError, PyRuntimeError};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
@@ -79,7 +81,7 @@ impl PyPdfDocument {
     /// Open a PDF file.
     ///
     /// Args:
-    ///     path (str): Path to the PDF file
+    ///     path (str | pathlib.Path): Path to the PDF file (string or path-like)
     ///
     /// Returns:
     ///     PdfDocument: Opened PDF document
@@ -89,16 +91,18 @@ impl PyPdfDocument {
     ///
     /// Example:
     ///     >>> doc = PdfDocument("sample.pdf")
+    ///     >>> doc = PdfDocument(Path("sample.pdf"))
     ///     >>> print(doc.version())
     ///     (1, 7)
     #[new]
-    fn new(path: String) -> PyResult<Self> {
+    fn new(path: PathBuf) -> PyResult<Self> {
         let doc = RustPdfDocument::open(&path)
             .map_err(|e| PyIOError::new_err(format!("Failed to open PDF: {}", e)))?;
 
+        let path_str = path.to_string_lossy().into_owned();
         Ok(PyPdfDocument {
             inner: doc,
-            path: Some(path),
+            path: Some(path_str),
             raw_bytes: None,
             editor: None,
         })
@@ -131,6 +135,25 @@ impl PyPdfDocument {
             raw_bytes: Some(bytes),
             editor: None,
         })
+    }
+
+    /// Enter the context manager. Returns self for use in `with PdfDocument(...) as doc:`.
+    ///
+    /// Example:
+    ///     >>> with PdfDocument("sample.pdf") as doc:
+    ///     ...     print(doc.page_count())
+    fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    /// Exit the context manager. Always returns False so exceptions are propagated.
+    fn __exit__(
+        &mut self,
+        _exc_type: Option<&Bound<'_, PyAny>>,
+        _exc_val: Option<&Bound<'_, PyAny>>,
+        _exc_tb: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<bool> {
+        Ok(false)
     }
 
     /// Get PDF version.
