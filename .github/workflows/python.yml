@@ -112,8 +112,7 @@ jobs:
         run: |
           uv pip install mypy maturin
           uv run maturin develop --features python
-          uv run stubgen -p pdf_oxide -o .
-          mv pdf_oxide/pdf_oxide.pyi python/pdf_oxide/pdf_oxide.pyi
+          uv run stubgen -p pdf_oxide -o python
 
       - name: Run Ruff
         run: uv run ruff check . --fix

@@ -97,7 +97,7 @@ impl ExtractedTable {
             for cell in &row.cells {
                 let cell_text = cell.text.trim();
                 if cell.colspan == 1 {
-                    col_widths[col_idx] = col_widths[col_idx].max(cell_text.len());
+                    col_widths[col_idx] = col_widths[col_idx].max(cell_text.chars().count());
                 }
                 col_idx += cell.colspan as usize;
             }
@@ -166,7 +166,7 @@ impl ExtractedTable {
                         cell_total_width += cell.colspan as usize - 1;
                     }
 
-                    let available_width = cell_total_width - 2;
+                    let available_width = cell_total_width.saturating_sub(2);
                     let line_content = row_cell_lines[cell_idx]
                         .get(line_idx)
                         .cloned()
@@ -174,7 +174,8 @@ impl ExtractedTable {
 
                     output.push(' ');
                     output.push_str(&line_content);
-                    for _ in 0..(available_width - line_content.len()) {
+                    let content_len = line_content.chars().count();
+                    for _ in 0..available_width.saturating_sub(content_len) {
                         output.push(' ');
                     }
                     output.push(' ');

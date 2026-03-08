@@ -160,12 +160,12 @@ cargo flamegraph --bench benchmark_name
 
 ### Python type stubs (.pyi)
 
-Type stubs for the Python bindings are generated from Rust via [pyo3-stub-gen](https://crates.io/crates/pyo3-stub-gen). The Rust code uses `#[gen_stub_pyclass]` / `#[gen_stub_pymethods]` and PyO3 types like `Bound<'_, PyBytes>` so that the generated `.pyi` shows correct Python types (e.g. `bytes`) without per-site overrides.
+Type stubs for the Python bindings are generated via [mypy stubgen](https://mypy.readthedocs.io/en/stable/stubgen.html). The generator introspects the compiled Rust extension to create the initial `.pyi` structure.
 
 **Generate stubs locally:**
 
 ```bash
-# From project root (uses pdm script; ensures PATH and CARGO_MANIFEST_DIR for stub_gen binary)
+# From project root (uses pdm script)
 pdm run stub_gen
 ```
 

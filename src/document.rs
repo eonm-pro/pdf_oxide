@@ -2795,7 +2795,11 @@ impl PdfDocument {
     /// ```
     /// Extract text from a page.
     pub fn extract_text(&mut self, page_index: usize) -> Result<String> {
-        self.extract_text_with_options(page_index, &crate::converters::ConversionOptions::default())
+        // Preserve historical behavior: do not extract tables by default in the main extract_text API.
+        // Users can use extract_text_with_options or Markdown/HTML converters for table support.
+        let mut options = crate::converters::ConversionOptions::default();
+        options.extract_tables = false;
+        self.extract_text_with_options(page_index, &options)
     }
 
     /// Extract text from a page with specific options (v0.3.16).
@@ -2804,12 +2808,23 @@ impl PdfDocument {
         page_index: usize,
         options: &crate::converters::ConversionOptions,
     ) -> Result<String> {
-        // 1. Extract Spans Early (needed for table detection)
+        // 1. Check if this is a Tagged PDF with structure tree (cached after first check).
+        // Uses Arc to avoid expensive deep clones of the tree on every page.
+        let cached_tree = match &self.structure_tree_cache {
+            Some(cached) => cached.clone(), // Arc clone = cheap ref count bump
+            None => {
+                let tree = self.structure_tree().ok().flatten().map(Arc::new);
+                self.structure_tree_cache = Some(tree.clone());
+                tree
+            },
+        };
+
+        // 2. Extract Spans Early (needed for table detection and both paths)
         let mut all_spans = self.extract_spans(page_index)?;
         let widget_spans = self.extract_widget_spans(page_index);
         all_spans.extend(widget_spans);
 
-        // 2. Table Detection (if enabled)
+        // 3. Table Detection (if enabled)
         let tables = if options.extract_tables {
             self.extract_page_tables(page_index, &all_spans, options)
         } else {
@@ -2817,9 +2832,8 @@ impl PdfDocument {
         };
 
         // Fast pre-check: skip pages that cannot produce text BEFORE the expensive
-        // structure tree parse. This avoids paying 200ms+ structure tree cost for
-        // cover pages and image-only pages that produce zero text.
-        {
+        // structure tree parse.
+        if all_spans.is_empty() {
             let page = self.get_page(page_index)?;
             let page_dict = page.as_dict().ok_or_else(|| Error::ParseError {
                 offset: 0,
@@ -2835,211 +2849,139 @@ impl PdfDocument {
                 }
             };
             if no_content_text {
-                // No text in content stream. Still collect widget annotation text
-                // (form field values) and non-widget annotation text (sticky notes).
-                let widget_spans = self.extract_widget_spans(page_index);
                 let mut text = String::new();
-                for span in &widget_spans {
-                    if !span.text.is_empty() {
-                        if !text.is_empty() {
-                            text.push('\n');
-                        }
-                        text.push_str(&span.text);
-                    }
-                }
                 self.append_non_widget_annotation_text(page_index, &mut text);
                 return Ok(text);
             }
         }
 
-        // Check if this is a Tagged PDF with structure tree (cached after first check).
-        // Uses Arc to avoid expensive deep clones of the tree on every page.
-        let cached_tree = match &self.structure_tree_cache {
-            Some(cached) => cached.clone(), // Arc clone = cheap ref count bump
-            None => {
-                let tree = self.structure_tree().ok().flatten().map(Arc::new);
-                self.structure_tree_cache = Some(tree.clone());
-                tree
-            },
-        };
-
-        if let Some(struct_tree) = cached_tree {
+        let text = if let Some(struct_tree) = cached_tree {
             // Build per-page traversal cache once, then O(1) lookup per page.
-            // This avoids re-traversing the entire structure tree for each page.
             if self.structure_content_cache.is_none() {
                 let all_content = crate::structure::traverse_structure_tree_all_pages(&struct_tree);
                 self.structure_content_cache = Some(all_content);
             }
-            return self.extract_text_structure_order_cached(page_index);
-        }
+            self.extract_text_structure_order_cached_with_spans(page_index, all_spans)?
+        } else {
+            // Untagged PDF: Use page content order
+            let mut spans = all_spans;
 
-        // Untagged PDF: Use page content order
-        let mut spans = all_spans;
+            // Exclude spans that are inside detected tables
+            if !tables.is_empty() {
+                spans.retain(|s| {
+                    !tables
+                        .iter()
+                        .any(|t| t.bbox.is_some_and(|b| b.contains_rect(&s.bbox)))
+                });
+            }
 
-        // Exclude spans that are inside detected tables
-        if !tables.is_empty() {
-            spans.retain(|s| {
-                !tables
-                    .iter()
-                    .any(|t| t.bbox.is_some_and(|b| b.contains_rect(&s.bbox)))
+            // Sort combined spans by position: Y descending (top→bottom), then X ascending (left→right)
+            spans.sort_by(|a, b| {
+                let y_cmp = crate::utils::safe_float_cmp(b.bbox.y, a.bbox.y);
+                if y_cmp != std::cmp::Ordering::Equal {
+                    return y_cmp;
+                }
+                let x_cmp = crate::utils::safe_float_cmp(a.bbox.x, b.bbox.x);
+                if x_cmp != std::cmp::Ordering::Equal {
+                    return x_cmp;
+                }
+                a.sequence.cmp(&b.sequence)
             });
-        }
 
-        // Sort combined spans by position: Y descending (top→bottom), then X ascending (left→right)
-        spans.sort_by(|a, b| {
-            let y_cmp = crate::utils::safe_float_cmp(b.bbox.y, a.bbox.y);
-            if y_cmp != std::cmp::Ordering::Equal {
-                return y_cmp;
-            }
-            let x_cmp = crate::utils::safe_float_cmp(a.bbox.x, b.bbox.x);
-            if x_cmp != std::cmp::Ordering::Equal {
-                return x_cmp;
-            }
-            a.sequence.cmp(&b.sequence)
-        });
-
-        // OCR fallback for scanned PDFs (when OCR feature is enabled)
-        // If no text spans found, check if page needs OCR
-        #[cfg(feature = "ocr")]
-        if spans.is_empty() || spans.iter().map(|s| s.text.len()).sum::<usize>() < 50 {
-            // Check if this looks like a scanned page
-            if let Ok(true) = crate::ocr::needs_ocr(self, page_index) {
-                log::debug!(
-                    "Page {} appears to be scanned, OCR available but not auto-enabled",
-                    page_index
-                );
-                // Note: We don't automatically run OCR here because:
-                // 1. It requires model files that may not be available
-                // 2. Users should opt-in via extract_text_with_ocr or similar
-                // 3. This keeps extract_text fast and predictable
-            }
-        }
-
-        if spans.is_empty() && tables.is_empty() {
-            // Even with no text content, check for non-widget annotation text
-            let mut text = String::new();
-            self.append_non_widget_annotation_text(page_index, &mut text);
-            if !text.is_empty() {
-                return Ok(crate::converters::whitespace::cleanup_plain_text(&text));
-            }
-            return Ok(String::new());
-        }
-
-        // RTL correction: reverse visual-order single-character Arabic/Hebrew span runs.
-        // Some PDFs position RTL characters individually left-to-right (visual order),
-        // but logical reading order is right-to-left. Detect runs of single-char RTL
-        // spans on the same line and reverse the text within each run.
-        Self::reverse_rtl_visual_order_runs(&mut spans);
-
-        // Filter out spans with NaN/Inf coordinates, dimensions, or font size
-        spans.retain(|s| {
-            s.bbox.x.is_finite()
-                && s.bbox.y.is_finite()
-                && s.bbox.width.is_finite()
-                && s.bbox.height.is_finite()
-                && s.font_size.is_finite()
-        });
-
-        // Assemble text from spans, preserving reading order
-        let mut text = String::with_capacity(spans.len() * 20); // estimate
-        let mut prev_span: Option<&TextSpan> = None;
-
-        for span in &spans {
-            // Skip spans that are fully contained within the previous span's bbox.
-            // This happens when font-change merging creates a combined span but
-            // individual sub-spans survive as separate entries (e.g., "the" inside
-            // a merged "install the docling" span in LaTeX PDFs).
-            if let Some(prev) = prev_span {
-                let prev_end_x = prev.bbox.x + prev.bbox.width;
-                let span_end_x = span.bbox.x + span.bbox.width;
-                let y_same = (prev.bbox.y - span.bbox.y).abs() < 2.0;
-                if y_same && span.bbox.x >= prev.bbox.x - 0.5 && span_end_x <= prev_end_x + 0.5 {
-                    // Span is contained within previous — skip to avoid duplicates
-                    continue;
+            // OCR fallback for scanned PDFs
+            #[cfg(feature = "ocr")]
+            if spans.is_empty() || spans.iter().map(|s| s.text.len()).sum::<usize>() < 50 {
+                if let Ok(true) = crate::ocr::needs_ocr(self, page_index) {
+                    log::debug!("Page {} appears to be scanned, OCR available but not auto-enabled", page_index);
                 }
             }
 
-            // Check if we need to insert space or line break
-            if let Some(prev) = prev_span {
-                let y_diff = (prev.bbox.y - span.bbox.y).abs();
-                let prev_end_x = prev.bbox.x + prev.bbox.width;
-                let gap = span.bbox.x - prev_end_x;
+            // RTL correction
+            Self::reverse_rtl_visual_order_runs(&mut spans);
 
-                // New line if Y position changed significantly (more than 2pt)
-                if y_diff > 2.0 {
-                    // Calculate number of line breaks based on Y gap
-                    let font_size = span.font_size.max(10.0);
-                    let line_height = font_size * 1.2; // typical line height
-                    let num_breaks = (y_diff / line_height).round() as usize;
+            // Filter out invalid spans
+            spans.retain(|s| {
+                s.bbox.x.is_finite()
+                    && s.bbox.y.is_finite()
+                    && s.bbox.width.is_finite()
+                    && s.bbox.height.is_finite()
+                    && s.font_size.is_finite()
+            });
 
-                    // Add line breaks (at least 1, max 3 for large gaps)
-                    for _ in 0..num_breaks.clamp(1, 3) {
-                        text.push('\n');
-                    }
-                } else if gap < -1.0 {
-                    // Significant overlap: span starts inside previous span's bbox.
+            let mut text = String::with_capacity(spans.len() * 20);
+            let mut prev_span: Option<&TextSpan> = None;
+
+            for span in &spans {
+                if let Some(prev) = prev_span {
+                    let prev_end_x = prev.bbox.x + prev.bbox.width;
                     let span_end_x = span.bbox.x + span.bbox.width;
-                    let font_changed = prev.font_name != span.font_name;
-                    let fs = span.font_size.max(prev.font_size).max(6.0);
+                    let y_same = (prev.bbox.y - span.bbox.y).abs() < 2.0;
+                    if y_same && span.bbox.x >= prev.bbox.x - 0.5 && span_end_x <= prev_end_x + 0.5 {
+                        continue;
+                    }
 
-                    if gap < -(fs * 20.0) {
-                        // Very large negative gap (200pt+): separate text region on same y-line
-                        // Common in slides where footer/label and body text share y-line
-                        if !text.ends_with('\n') {
+                    let y_diff = (prev.bbox.y - span.bbox.y).abs();
+                    let gap = span.bbox.x - prev_end_x;
+
+                    if y_diff > 2.0 {
+                        let font_size = span.font_size.max(10.0);
+                        let line_height = font_size * 1.2;
+                        let num_breaks = (y_diff / line_height).round() as usize;
+                        for _ in 0..num_breaks.clamp(1, 3) {
                             text.push('\n');
                         }
-                    } else if font_changed && span_end_x > prev_end_x + 0.5 {
-                        // Font change with new content — insert space as word boundary
-                        if !text.ends_with(' ') && !text.ends_with('\n') {
-                            text.push(' ');
+                    } else if gap < -1.0 {
+                        let fs = span.font_size.max(prev.font_size).max(6.0);
+                        if gap < -(fs * 20.0) {
+                            if !text.ends_with('\n') {
+                                text.push('\n');
+                            }
+                        } else if prev.font_name != span.font_name && span_end_x > prev_end_x + 0.5 {
+                            if !text.ends_with(' ') && !text.ends_with('\n') {
+                                text.push(' ');
+                            }
+                        }
+                    } else if Self::should_insert_space(prev, span) {
+                        text.push(' ');
+                    } else {
+                        let fs = span.font_size.max(prev.font_size).max(6.0);
+                        if gap > fs * 3.0 {
+                            text.push('\n');
                         }
                     }
-                    // Same font small overlap: Td positioning within a word → no space
-                } else if Self::should_insert_space(prev, span) {
-                    text.push(' ');
-                } else {
-                    // Check for column boundary: same line with very large gap
-                    let fs = span.font_size.max(prev.font_size).max(6.0);
-                    if gap > fs * 3.0 {
-                        text.push('\n');
+                }
+
+                for ch in span.text.chars() {
+                    if let Some(components) =
+                        crate::text::ligature_processor::get_ligature_components(ch)
+                    {
+                        text.push_str(components);
+                    } else {
+                        text.push(ch);
                     }
                 }
+                prev_span = Some(span);
             }
+            text
+        };
 
-            // Expand ligature characters (ﬀ→ff, ﬁ→fi, ﬂ→fl, ﬃ→ffi, ﬄ→ffl)
-            for ch in span.text.chars() {
-                if let Some(components) =
-                    crate::text::ligature_processor::get_ligature_components(ch)
-                {
-                    text.push_str(components);
-                } else {
-                    text.push(ch);
-                }
-            }
-            prev_span = Some(span);
-        }
+        // Append text from non-widget annotations
+        let mut final_text = text;
+        self.append_non_widget_annotation_text(page_index, &mut final_text);
 
-        // Append text from non-widget annotations on this page
-        // (FreeText /Contents, Stamp appearance streams, etc.)
-        self.append_non_widget_annotation_text(page_index, &mut text);
+        // Filter leaked PDF metadata
+        let final_text = Self::filter_leaked_metadata(&final_text);
 
-        // Filter leaked PDF metadata (e.g., CalRGB ColorSpace dictionaries)
-        // Some PDFs embed inline color space definitions that get parsed as text
-        let text = Self::filter_leaked_metadata(&text);
+        // Normalize Kangxi Radicals
+        let final_text = Self::normalize_kangxi_radicals(&final_text);
 
-        // Normalize Kangxi Radicals (U+2F00-U+2FD5) and CJK Radicals Supplement
-        // (U+2E80-U+2EFF) to CJK Unified Ideographs for proper search/matching
-        let text = Self::normalize_kangxi_radicals(&text);
+        // Normalize Arabic Presentation Forms
+        let final_text = Self::normalize_arabic_presentation_forms(&final_text);
 
-        // Normalize Arabic Presentation Forms (U+FB50-U+FDFF, U+FE70-U+FEFF) to
-        // base Unicode characters for proper text search and matching
-        let text = Self::normalize_arabic_presentation_forms(&text);
+        // Apply whitespace cleanup
+        let mut cleaned_text = crate::converters::whitespace::cleanup_plain_text(&final_text);
 
-        // Apply whitespace cleanup for better readability
-        // This normalizes excessive double spaces and blank lines
-        let mut cleaned_text = crate::converters::whitespace::cleanup_plain_text(&text);
-
-        // Append ASCII tables at the end
+        // Append ASCII tables at the end (for both tagged and untagged)
         if !tables.is_empty() {
             for table in tables {
                 cleaned_text.push_str("\n\n");
@@ -4840,15 +4782,19 @@ impl PdfDocument {
     /// the pre-built `structure_content_cache` for O(1) page content lookup instead
     /// of re-traversing the entire structure tree for each page.
     fn extract_text_structure_order_cached(&mut self, page_index: usize) -> Result<String> {
-        log::debug!("Extracting text using cached structure order for page {}", page_index);
-
-        // Step 1: Extract all spans with MCIDs
+        // Fall back to new method with fresh spans
         let mut all_spans = self.extract_spans(page_index)?;
-
-        // Merge widget annotation spans (form field values) into the span list.
-        // Widget spans have no MCID and will be sorted spatially with other non-MCID spans.
         let widget_spans = self.extract_widget_spans(page_index);
         all_spans.extend(widget_spans);
+        self.extract_text_structure_order_cached_with_spans(page_index, all_spans)
+    }
+
+    fn extract_text_structure_order_cached_with_spans(
+        &mut self,
+        page_index: usize,
+        all_spans: Vec<TextSpan>,
+    ) -> Result<String> {
+        log::debug!("Extracting text using cached structure order for page {}", page_index);
 
         if all_spans.is_empty() {
             let mut text = String::new();
