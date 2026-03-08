@@ -258,10 +258,9 @@ def test_context_manager_with_pathlib():
 def test_context_manager_exception_propagates():
     """Exceptions inside the with block are not swallowed (__exit__ returns False)."""
     try:
-        with pytest.raises(ValueError):
-            with PdfDocument("tests/fixtures/1.pdf") as doc:
-                _ = doc.page_count()
-                raise ValueError("intentional")
+        with pytest.raises(ValueError), PdfDocument("tests/fixtures/1.pdf") as doc:
+            _ = doc.page_count()
+            raise ValueError("intentional")
     except (OSError, RuntimeError):
         pytest.skip("Test fixture '1.pdf' not available or invalid")
 

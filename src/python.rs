@@ -28,7 +28,7 @@ use crate::writer::{BlendMode as RustBlendMode, LineCap as RustLineCap, LineJoin
 /// Python wrapper for PdfDocument.
 ///
 /// Provides PDF parsing, text extraction, and format conversion capabilities.
-#[pyclass(name = "PdfDocument", unsendable)]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PdfDocument", unsendable)]
 pub struct PyPdfDocument {
     pub(crate) inner: RustPdfDocument,
     pub(crate) path: Option<String>,
@@ -1495,7 +1495,7 @@ impl PyPdfDocument {
 }
 
 /// A form field extracted from a PDF AcroForm.
-#[pyclass(name = "FormField", unsendable)]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "FormField", unsendable)]
 pub struct PyFormField {
     inner: RustFormField,
 }
@@ -1596,7 +1596,7 @@ fn python_to_form_field_value(
 }
 
 /// Python wrapper for PDF creation.
-#[pyclass(name = "Pdf")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "Pdf")]
 pub struct PyPdf {
     bytes: Vec<u8>,
 }
@@ -1728,11 +1728,11 @@ impl PyPdf {
 use crate::converters::office::OfficeConverter as RustOfficeConverter;
 
 #[cfg(feature = "office")]
-#[pyclass(name = "OfficeConverter")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "OfficeConverter")]
 pub struct PyOfficeConverter;
 
 #[cfg(not(feature = "office"))]
-#[pyclass(name = "OfficeConverter")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "OfficeConverter")]
 pub struct PyOfficeConverter;
 
 #[cfg(not(feature = "office"))]
@@ -1832,7 +1832,7 @@ impl PyOfficeConverter {
 
 use crate::editor::{ElementId, PdfElement, PdfPage as RustPdfPage, PdfText as RustPdfText};
 
-#[pyclass(name = "PdfPageRegion")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PdfPageRegion")]
 pub struct PyPdfPageRegion {
     pub doc: Py<PyPdfDocument>,
     pub page_index: usize,
@@ -1887,7 +1887,7 @@ impl PyPdfPageRegion {
     }
 }
 
-#[pyclass(name = "PdfPage", unsendable)]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PdfPage", unsendable)]
 pub struct PyPdfPage {
     inner: RustPdfPage,
 }
@@ -2004,7 +2004,7 @@ impl PyPdfPage {
     }
 }
 
-#[pyclass(name = "PdfTextId")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PdfTextId")]
 #[derive(Clone)]
 pub struct PyPdfTextId {
     inner: ElementId,
@@ -2016,7 +2016,7 @@ impl PyPdfTextId {
     }
 }
 
-#[pyclass(name = "PdfText")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PdfText")]
 #[derive(Clone)]
 pub struct PyPdfText {
     inner: RustPdfText,
@@ -2072,7 +2072,7 @@ impl PyPdfText {
     }
 }
 
-#[pyclass(name = "PdfImage")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PdfImage")]
 #[derive(Clone)]
 pub struct PyPdfImage {
     inner: crate::editor::PdfImage,
@@ -2102,7 +2102,7 @@ impl PyPdfImage {
     }
 }
 
-#[pyclass(name = "PdfAnnotation")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PdfAnnotation")]
 #[derive(Clone)]
 pub struct PyAnnotationWrapper {
     inner: crate::editor::AnnotationWrapper,
@@ -2139,7 +2139,7 @@ impl PyAnnotationWrapper {
     }
 }
 
-#[pyclass(name = "PdfElement")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PdfElement")]
 #[derive(Clone)]
 pub struct PyPdfElement {
     inner: PdfElement,
@@ -2185,7 +2185,7 @@ impl PyPdfElement {
     }
 }
 
-#[pyclass(name = "TextChar")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "TextChar")]
 #[derive(Clone)]
 pub struct PyTextChar {
     inner: RustTextChar,
@@ -2247,7 +2247,7 @@ impl PyTextChar {
     }
 }
 
-#[pyclass(name = "TextSpan")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "TextSpan")]
 #[derive(Clone)]
 pub struct PyTextSpan {
     inner: crate::layout::TextSpan,
@@ -2289,7 +2289,7 @@ impl PyTextSpan {
     }
 }
 
-#[pyclass(name = "TextWord")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "TextWord")]
 #[derive(Clone)]
 pub struct PyWord {
     inner: crate::layout::Word,
@@ -2335,7 +2335,7 @@ impl PyWord {
     }
 }
 
-#[pyclass(name = "TextLine")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "TextLine")]
 #[derive(Clone)]
 pub struct PyTextLine {
     inner: crate::layout::TextLine,
@@ -2442,12 +2442,12 @@ fn outline_items_to_py(
 }
 
 #[cfg(feature = "ocr")]
-#[pyclass(name = "OcrEngine", unsendable)]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "OcrEngine", unsendable)]
 pub struct PyOcrEngine {
     inner: crate::ocr::OcrEngine,
 }
 #[cfg(not(feature = "ocr"))]
-#[pyclass(name = "OcrEngine", unsendable)]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "OcrEngine", unsendable)]
 pub struct PyOcrEngine {}
 #[cfg(not(feature = "ocr"))]
 #[pymethods]
@@ -2477,13 +2477,13 @@ impl PyOcrEngine {
 }
 
 #[cfg(feature = "ocr")]
-#[pyclass(name = "OcrConfig")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "OcrConfig")]
 #[derive(Clone)]
 pub struct PyOcrConfig {
     inner: crate::ocr::OcrConfig,
 }
 #[cfg(not(feature = "ocr"))]
-#[pyclass(name = "OcrConfig")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "OcrConfig")]
 #[derive(Clone)]
 pub struct PyOcrConfig {}
 #[cfg(not(feature = "ocr"))]
@@ -2519,7 +2519,7 @@ impl PyOcrConfig {
     }
 }
 
-#[pyclass(name = "Color")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "Color")]
 #[derive(Clone)]
 pub struct PyColor {
     inner: RustColor,
@@ -2544,6 +2544,43 @@ impl PyColor {
             inner: RustColor::white(),
         }
     }
+    #[staticmethod]
+    fn red() -> Self {
+        PyColor {
+            inner: RustColor::new(1.0, 0.0, 0.0),
+        }
+    }
+    #[staticmethod]
+    fn green() -> Self {
+        PyColor {
+            inner: RustColor::new(0.0, 1.0, 0.0),
+        }
+    }
+    #[staticmethod]
+    fn blue() -> Self {
+        PyColor {
+            inner: RustColor::new(0.0, 0.0, 1.0),
+        }
+    }
+    #[staticmethod]
+    fn from_hex(hex: &str) -> PyResult<Self> {
+        let hex = hex.trim_start_matches('#');
+        if hex.len() != 6 {
+            return Err(PyRuntimeError::new_err("Invalid hex color length"));
+        }
+        let r = u8::from_str_radix(&hex[0..2], 16)
+            .map_err(|_| PyRuntimeError::new_err("Invalid hex color"))? as f32
+            / 255.0;
+        let g = u8::from_str_radix(&hex[2..4], 16)
+            .map_err(|_| PyRuntimeError::new_err("Invalid hex color"))? as f32
+            / 255.0;
+        let b = u8::from_str_radix(&hex[4..6], 16)
+            .map_err(|_| PyRuntimeError::new_err("Invalid hex color"))? as f32
+            / 255.0;
+        Ok(PyColor {
+            inner: RustColor::new(r, g, b),
+        })
+    }
     #[getter]
     fn r(&self) -> f32 {
         self.inner.r
@@ -2559,7 +2596,7 @@ impl PyColor {
 }
 
 #[allow(dead_code)]
-#[pyclass(name = "BlendMode")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "BlendMode")]
 #[derive(Clone)]
 pub struct PyBlendMode {
     inner: RustBlendMode,
@@ -2580,10 +2617,80 @@ impl PyBlendMode {
             inner: RustBlendMode::Multiply,
         }
     }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn SCREEN() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::Screen,
+        }
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn OVERLAY() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::Overlay,
+        }
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn DARKEN() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::Darken,
+        }
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn LIGHTEN() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::Lighten,
+        }
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn COLOR_DODGE() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::ColorDodge,
+        }
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn COLOR_BURN() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::ColorBurn,
+        }
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn HARD_LIGHT() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::HardLight,
+        }
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn SOFT_LIGHT() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::SoftLight,
+        }
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn DIFFERENCE() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::Difference,
+        }
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn EXCLUSION() -> Self {
+        PyBlendMode {
+            inner: RustBlendMode::Exclusion,
+        }
+    }
 }
 
 #[allow(dead_code)]
-#[pyclass(name = "ExtGState")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "ExtGState")]
 #[derive(Clone)]
 pub struct PyExtGState {
     fill_alpha: Option<f32>,
@@ -2608,31 +2715,156 @@ impl PyExtGState {
             blend_mode: self.blend_mode,
         }
     }
+    fn fill_alpha(&self, a: f32) -> Self {
+        PyExtGState {
+            fill_alpha: Some(a.clamp(0.0, 1.0)),
+            stroke_alpha: self.stroke_alpha,
+            blend_mode: self.blend_mode,
+        }
+    }
+    fn stroke_alpha(&self, a: f32) -> Self {
+        PyExtGState {
+            fill_alpha: self.fill_alpha,
+            stroke_alpha: Some(a.clamp(0.0, 1.0)),
+            blend_mode: self.blend_mode,
+        }
+    }
+    fn blend_mode(&self, mode: &PyBlendMode) -> Self {
+        PyExtGState {
+            fill_alpha: self.fill_alpha,
+            stroke_alpha: self.stroke_alpha,
+            blend_mode: Some(mode.inner),
+        }
+    }
+    #[staticmethod]
+    fn semi_transparent() -> Self {
+        PyExtGState {
+            fill_alpha: Some(0.5),
+            stroke_alpha: Some(0.5),
+            blend_mode: None,
+        }
+    }
 }
 
-#[pyclass(name = "LinearGradient")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "LinearGradient")]
 #[derive(Clone)]
-pub struct PyLinearGradient;
+pub struct PyLinearGradient {
+    x1: f32,
+    y1: f32,
+    x2: f32,
+    y2: f32,
+    stops: Vec<(f32, RustColor)>,
+}
 #[pymethods]
 impl PyLinearGradient {
     #[new]
     fn new() -> Self {
-        Self
+        PyLinearGradient {
+            x1: 0.0,
+            y1: 0.0,
+            x2: 100.0,
+            y2: 100.0,
+            stops: Vec::new(),
+        }
+    }
+    fn start(&self, x: f32, y: f32) -> Self {
+        let mut slf = self.clone();
+        slf.x1 = x;
+        slf.y1 = y;
+        slf
+    }
+    fn end(&self, x: f32, y: f32) -> Self {
+        let mut slf = self.clone();
+        slf.x2 = x;
+        slf.y2 = y;
+        slf
+    }
+    fn add_stop(&self, offset: f32, color: &PyColor) -> Self {
+        let mut slf = self.clone();
+        slf.stops.push((offset, color.inner));
+        slf
+    }
+    #[staticmethod]
+    fn horizontal(width: f32, start: &PyColor, end: &PyColor) -> Self {
+        PyLinearGradient {
+            x1: 0.0,
+            y1: 0.0,
+            x2: width,
+            y2: 0.0,
+            stops: vec![(0.0, start.inner), (1.0, end.inner)],
+        }
+    }
+    #[staticmethod]
+    fn vertical(height: f32, start: &PyColor, end: &PyColor) -> Self {
+        PyLinearGradient {
+            x1: 0.0,
+            y1: 0.0,
+            x2: 0.0,
+            y2: height,
+            stops: vec![(0.0, start.inner), (1.0, end.inner)],
+        }
     }
 }
 
-#[pyclass(name = "RadialGradient")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "RadialGradient")]
 #[derive(Clone)]
-pub struct PyRadialGradient;
+pub struct PyRadialGradient {
+    x1: f32,
+    y1: f32,
+    r1: f32,
+    x2: f32,
+    y2: f32,
+    r2: f32,
+    stops: Vec<(f32, RustColor)>,
+}
 #[pymethods]
 impl PyRadialGradient {
     #[new]
     fn new() -> Self {
-        Self
+        PyRadialGradient {
+            x1: 50.0,
+            y1: 50.0,
+            r1: 0.0,
+            x2: 50.0,
+            y2: 50.0,
+            r2: 50.0,
+            stops: Vec::new(),
+        }
+    }
+    fn inner_circle(&self, x: f32, y: f32, r: f32) -> Self {
+        let mut slf = self.clone();
+        slf.x1 = x;
+        slf.y1 = y;
+        slf.r1 = r;
+        slf
+    }
+    fn outer_circle(&self, x: f32, y: f32, r: f32) -> Self {
+        let mut slf = self.clone();
+        slf.x2 = x;
+        slf.y2 = y;
+        slf.r2 = r;
+        slf
+    }
+    fn add_stop(&self, offset: f32, color: &PyColor) -> Self {
+        let mut slf = self.clone();
+        slf.stops.push((offset, color.inner));
+        slf
+    }
+    #[staticmethod]
+    fn centered(x: f32, y: f32, radius: f32) -> Self {
+        PyRadialGradient {
+            x1: x,
+            y1: y,
+            r1: 0.0,
+            x2: x,
+            y2: y,
+            r2: radius,
+            stops: Vec::new(),
+        }
     }
 }
 
-#[pyclass(name = "LineCap")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "LineCap")]
 #[derive(Clone)]
 pub struct PyLineCap {
     pub inner: RustLineCap,
@@ -2657,9 +2889,24 @@ impl PyLineCap {
             inner: RustLineCap::Square,
         }
     }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn BUTT() -> Self {
+        Self::butt()
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn ROUND() -> Self {
+        Self::round()
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn SQUARE() -> Self {
+        Self::square()
+    }
 }
 
-#[pyclass(name = "LineJoin")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "LineJoin")]
 #[derive(Clone)]
 pub struct PyLineJoin {
     pub inner: RustLineJoin,
@@ -2684,24 +2931,55 @@ impl PyLineJoin {
             inner: RustLineJoin::Bevel,
         }
     }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn MITER() -> Self {
+        Self::miter()
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn ROUND() -> Self {
+        Self::round()
+    }
+    #[staticmethod]
+    #[allow(non_snake_case)]
+    fn BEVEL() -> Self {
+        Self::bevel()
+    }
 }
 
-#[pyclass(name = "PatternPresets")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PatternPresets")]
 #[derive(Clone)]
 pub struct PyPatternPresets;
 #[pymethods]
 impl PyPatternPresets {
     #[staticmethod]
-    fn diagonal_lines() -> PyPatternPresets {
-        PyPatternPresets
+    fn horizontal_stripes(width: f32, height: f32, stripe_height: f32, color: &PyColor) -> Vec<u8> {
+        crate::writer::PatternPresets::horizontal_stripes(width, height, stripe_height, color.inner)
     }
     #[staticmethod]
-    fn crosshatch() -> PyPatternPresets {
-        PyPatternPresets
+    fn vertical_stripes(width: f32, height: f32, stripe_width: f32, color: &PyColor) -> Vec<u8> {
+        crate::writer::PatternPresets::vertical_stripes(width, height, stripe_width, color.inner)
+    }
+    #[staticmethod]
+    fn checkerboard(size: f32, color1: &PyColor, color2: &PyColor) -> Vec<u8> {
+        crate::writer::PatternPresets::checkerboard(size, color1.inner, color2.inner)
+    }
+    #[staticmethod]
+    fn dots(spacing: f32, radius: f32, color: &PyColor) -> Vec<u8> {
+        crate::writer::PatternPresets::dots(spacing, radius, color.inner)
+    }
+    #[staticmethod]
+    fn diagonal_lines(size: f32, line_width: f32, color: &PyColor) -> Vec<u8> {
+        crate::writer::PatternPresets::diagonal_lines(size, line_width, color.inner)
+    }
+    #[staticmethod]
+    fn crosshatch(size: f32, line_width: f32, color: &PyColor) -> Vec<u8> {
+        crate::writer::PatternPresets::crosshatch(size, line_width, color.inner)
     }
 }
 
-#[pyclass(name = "ArtifactStyle")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "ArtifactStyle")]
 #[derive(Clone)]
 pub struct PyArtifactStyle {
     pub inner: crate::writer::ArtifactStyle,
@@ -2728,7 +3006,7 @@ impl PyArtifactStyle {
     }
 }
 
-#[pyclass(name = "Artifact")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "Artifact")]
 #[derive(Clone)]
 pub struct PyArtifact {
     pub inner: crate::writer::Artifact,
@@ -2753,7 +3031,7 @@ impl PyArtifact {
     }
 }
 
-#[pyclass(name = "Header")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "Header")]
 #[derive(Clone)]
 pub struct PyHeader {
     pub inner: PyArtifact,
@@ -2778,7 +3056,7 @@ impl PyHeader {
     }
 }
 
-#[pyclass(name = "Footer")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "Footer")]
 #[derive(Clone)]
 pub struct PyFooter {
     pub inner: PyArtifact,
@@ -2803,7 +3081,7 @@ impl PyFooter {
     }
 }
 
-#[pyclass(name = "PageTemplate")]
+#[pyclass(module = "pdf_oxide.pdf_oxide", name = "PageTemplate")]
 #[derive(Clone)]
 pub struct PyPageTemplate {
     pub inner: crate::writer::PageTemplate,
