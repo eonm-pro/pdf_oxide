@@ -68,7 +68,7 @@ jobs:
         shell: bash
         run: |
           wheel=$(ls dist/*.whl)
-          uv pip install "$wheel"
+          uv run pip install "$wheel"
 
       - name: Run Rust tests with Python feature
         # Skip on macOS due to extension-module linking restrictions
@@ -110,7 +110,7 @@ jobs:
 
       - name: Generate .pyi from Rust
         run: |
-          uv pip install mypy maturin
+          uv run pip install mypy maturin
           uv run maturin develop --features python
           uv run stubgen -p pdf_oxide -o python
 
