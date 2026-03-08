@@ -14,20 +14,23 @@ All notable changes to PDFOxide are documented here.
     - **Visual Headers:** Heuristically identifies hierarchical (multi-row) header rows.
 - **Professional ASCII Tables:** Added high-quality ASCII table formatting for plain text output, featuring automatic multiline text wrapping and balanced column alignment.
 - **Auto-generated Python type stubs** (#220) — Integrated automated `.pyi` stub generation using **mypy's stubgen** in the CI pipeline, ensuring Python IDEs always have up-to-date type information for the Rust bindings.
-- **Python `PdfDocument` path-like** — `PdfDocument` now accepts `pathlib.Path` (or any path-like object) in addition to `str` for the file path.
-- **Python `PdfDocument` context manager** — `PdfDocument` supports the context manager protocol: use `with PdfDocument(path) as doc:` for scoped usage; exceptions inside the block are propagated (not swallowed).
+- **Python `PdfDocument` path-like and context manager** (#223) — `PdfDocument` now accepts `pathlib.Path` (or any path-like object) and supports the context manager protocol (`with PdfDocument(path) as doc:`), ensuring scoped usage and automatic resource cleanup.
 - **Enabled by Default:** Table extraction is now active by default in all Markdown, HTML, and Plain Text conversions.
 - **Robust Geometry:** Updated `Rect` primitive to handle negative dimensions and coordinate normalization natively.
 
 ### Bug Fixes
 
+- **Fixed segfault in nested Form XObject text extraction** (#228) — Resolved aliased `&mut` references during recursive XObject processing using interior mutability (`RefCell`/`Cell`).
 - **Fixed Python Coordinate Scaling:** Corrected `erase_region` coordinate mapping in Python bindings to use the standard `[x1, y1, x2, y2]` format.
 - **Improved ASCII Table Wrapping:** Reworked text wrapping to be UTF-8 safe, preventing panics on multi-byte characters.
 - **Refined Rendering API:** Restored backward compatibility for the `render_page` method.
 
 ### 🏆 Community Contributors
 
-🥇 **@monchin** — Thank you for the fantastic initiative on automated stub generation (#220)! We've integrated this into the v0.3.16 release using **mypy's stubgen** in our CI pipeline. This significantly improves the developer experience for Python users by providing consistent, IDE-friendly type hints while maintaining full compatibility. Outstanding contribution! 🚀
+🥇 **@hoesler** — Huge thanks for PR #228! Your fix for the nested XObject aliasing UB is a critical stability improvement that eliminates segfaults in complex PDFs. By correctly employing interior mutability, you've made the core extraction engine significantly more robust and spec-compliant. Outstanding work! 🚀
+
+🥈 **@monchin** — Thank you for the fantastic initiative on automated stub generation (#220) and the ergonomic improvements for Python (#223)! We've integrated these into the v0.3.16 release, providing consistent, IDE-friendly type hints and modern path-like/context manager support. Outstanding contributions! 🚀
+
 
 ## [0.3.15] - 2026-03-06
 > Header & Footer Management, Multi-Column Stability, and Font Fixes
@@ -94,28 +97,65 @@ Reported by **@vincenzopalazzo** — `extract_text()` returns empty string for e
 
 - **Consolidated text decoding and positioning logic** (#187) — unified the high-level `extract_text_spans()` and low-level `extract_chars()` paths into a single shared engine to prevent logic drift and ensure consistent character handling.
 - **Fixed render_page for in-memory PDFs** — ensured that PDFs created from bytes or strings can be rendered by automatically initializing a temporary editor if needed.
-- **Improved Clustering Accuracy** — updated character clustering to use gap-based distance instead of center-to-center, providing better word segmentation for variable-width fonts.
+- **Improved Clustering Accuracy** — updated character clustering to use gap-based distance instead of center-to-center distance, ensuring accurate word grouping regardless of font size.
 
-### 🏆 Community Contributors
+### Community Contributors
 
-🥇 **@hoesler** (Stefan Hösel) — Huge thanks for PR #182! Your contribution of automated type stub generation using `pydantic` significantly improves the development experience for all Python users of PDF Oxide. 🚀
+Thank you to **@MarcRene71** for identifying the critical API discoverability issue with OCR (#204). Your report led to a more robust "Pythonic" approach to feature gating, ensuring that users always see the full API and receive helpful guidance when features are disabled!
 
-🥈 **@bikallem** — Thank you for PR #183 fixing the HTML layout issues! Your precise adjustments to character positioning ensure that PDF Oxide's HTML output is visually identical to the source PDF. 🎨
+Thank you to **@vincenzopalazzo** for identifying and fixing the critical issues with encrypted CID fonts and V=4 crypt filters (#202). Your contribution of both the fix and the reproduction fixture was essential for ensuring PDFOxide handles professional PDFs from diverse producers!
 
-🥉 **@MarcRene71** — Thanks for reporting the feature gating issue (#204). Your feedback helped us provide a much more user-friendly experience when working with optional build features! 🔍
+Thank you to **@ankursri494** (Ankur Srivastava) for the excellent proposal to bridge the gap between `PdfPlumber`'s flexibility and PDFOxide's performance (#185). Your detailed breakdown of word-level and table extraction requirements was the roadmap for this release!
 
-## [0.3.13] - 2026-02-28
-> Performance & Security Hardening
+Thank you to **@cole-dda** for identifying the critical caching bug (#193). The detailed reproduction case was essential for pinpointing the interaction between the low-level character API and the document-level XObject caches.
 
-### Features
+## [0.3.13] - 2026-03-02
+> Character Extraction Quality, Multi-byte Encoding (Issue #186)
 
-- **Blazing Fast Text Extraction** — optimized character clustering logic using a pre-allocated segment tree. Performance increased by ~40% for large documents (100+ pages).
-- **Hardened Parser** — added depth limits to object reference resolution to prevent "billion laughs" style recursion attacks in malformed PDFs.
-- **Memory Safety** — migrated all remaining `unsafe` blocks in CMap decoding to safe Rust implementations.
+### Bug Fixes — Character Extraction (#186)
 
-### 🏆 Community Contributors
+Reported by **@cole-dda** — garbled output when using `extract_chars()` on PDFs with multi-byte encodings (CJK text, Type0 fonts).
 
-🥇 **@Goldziher** — Thank you for the exhaustive evaluation of PDF extraction quality (#181). Your systematic approach to testing across 10 diverse documents directly resulted in critical fixes for font scaling and encoding fallbacks. The feedback from power users like you is what drives PDF Oxide's quality forward!
+- **Multi-byte decoding in show_text** — fixed `extract_chars()` to correctly handle 2-byte and variable-width encodings (Identity-H/V, Shift-JIS, etc.). Previously, characters were processed byte-by-byte, causing multi-byte characters to be split and garbled. Now uses the same robust decoding logic as `extract_spans()`.
+- **Improved character positioning accuracy** — replaced the 0.5em fixed-width estimate in `show_text` with actual glyph widths from the font dictionary. This ensures that character bounding boxes (`bbox`) and origins are precisely positioned, matching the actual PDF rendering.
+- **Accurate character advancement** — character spacing (`Tc`) and word spacing (`Tw`) are now correctly scaled by horizontal scaling (`Th`) during character-level extraction, ensuring correct text matrix updates.
+
+### Community Contributors
+
+Thank you to **@cole-dda** for identifying and reporting the character extraction quality issue with an excellent reproduction case (#186). Your report directly led to identifying the divergence between our high-level and low-level extraction paths, making `extract_chars()` significantly more robust for CJK and other multi-byte documents. We really appreciate your contribution to making PDF Oxide better!
+
+## [0.3.12] - 2026-03-01
+> Text Extraction Quality, Determinism, Performance, Markdown Conversion
+
+### Bug Fixes — Text Extraction (#181)
+
+Reported by **@Goldziher** — systematic evaluation across 10 PDFs covering word merging, encoding failures, and RTL text.
+
+- **CID font width calculation** — fixed text-to-user space conversion for CID fonts. Glyph widths were not correctly scaled, causing word boundary detection to merge adjacent words (`destinationmachine` → `destination machine`, `helporganizeas` → `help organize as`).
+
+- **Font-change word boundary detection** — when PDF font changes mid-line (e.g., regular→italic for product names in LaTeX), we now detect this as a word boundary even if the visual gap is small. Previously, these were merged into single words with mixed formatting.
+
+- **Non-Standard CID mapping fallback** — implemented a fallback mechanism for CID fonts with broken `/ToUnicode` maps. If mapping fails, we now attempt to use the font's internal `cmap` table directly. Fixed encoding failures in 3 PDFs from the corpus.
+
+- **RTL text directionality foundation** — added basic support for identifying RTL (Right-to-Left) script spans (Arabic, Hebrew) based on Unicode range. Provides correctly ordered spans for simple RTL layouts.
+
+### Features — Markdown Conversion
+
+- **Optimized Markdown engine** — significantly improved the performance of `to_markdown()` by implementing recursive spatial partitioning (XY-Cut). This ensures that multi-column layouts and complex document structures are converted into accurate, readable Markdown.
+- **Heading Detection** — automated identification of headers (H1-H6) based on font size variance and document-wide frequency analysis.
+- **List Reconstruction** — detects bulleted and numbered lists by analyzing leading character patterns and indentation consistency.
+
+### Performance
+
+- **Zero-copy page tree traversal** — refactored internal page navigation to avoid redundant dictionary cloning during deep page tree traversal for multi-page extraction.
+- **Structure tree caching** — Structure tree result cached after first access, avoiding redundant parsing on every `extract_text()` call (major impact on tagged PDFs like PDF32000_2008.pdf).
+- **BT operator early-out** — `extract_spans()`, `extract_spans_with_config()`, and `extract_chars()` skip the full text extraction pipeline for image-only pages that contain no `BT` (Begin Text) operators.
+- **Larger I/O buffer for big files** — `BufReader` capacity increased from 8 KB to 256 KB for files >100 MB, reducing syscall overhead on 1.5 GB newspaper archives.
+- **Xref reconstruction threshold removed** — Eliminated the `xref.len() < 5` heuristic that triggered full-file reconstruction on valid portfolio PDFs with few objects (5-13s → <100ms).
+
+### Community Contributors
+
+Thank you to **@Goldziher** for the exhaustive evaluation of PDF extraction quality (#181). Your systematic approach to testing across 10 diverse documents directly resulted in critical fixes for font scaling and encoding fallbacks. The feedback from power users like you is what drives PDF Oxide's quality forward!
 
 ## [0.3.5] - 2026-02-20
 > Stability, Image Extraction & Error Recovery (Issue #41, #44, #45, #46)
@@ -571,7 +611,7 @@ Reported by **@vincenzopalazzo** — `extract_text()` returns empty string for e
   - `PdfDocument::resolve_references()` for recursive reference handling in complex PDF structures.
 - **Type 0 /W array parsing** for CIDFont glyph widths.
   - Proper spacing for CJK text using CIDFont width specifications.
-  - **ActualText verification tests** - comprehensive test coverage for PDF Spec Section 14.9.4.
+- **ActualText verification tests** - comprehensive test coverage for PDF Spec Section 14.9.4.
 
 ### Fixed
 - **Soft hyphen handling** (U+00AD) - now correctly treated as valid continuation hyphen for word reconstruction.
