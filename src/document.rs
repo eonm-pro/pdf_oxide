@@ -225,8 +225,8 @@ struct ImageExtractFilter {
 impl Default for ImageExtractFilter {
     fn default() -> Self {
         Self {
-            min_width: 8,
-            min_height: 8,
+            min_width: 0,
+            min_height: 0,
             max_pixels: u64::MAX,
             skip_indexed_small: 0,
         }
