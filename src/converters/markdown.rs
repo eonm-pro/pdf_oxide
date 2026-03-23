@@ -921,6 +921,7 @@ impl MarkdownConverter {
                 horizontal_scaling: 100.0,
                 primary_detected: false,
                 artifact_type: None,
+                render_mode: 0,
             })
             .collect();
 
@@ -1557,6 +1558,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -1575,6 +1577,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -1593,6 +1596,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
         ];
 
@@ -1633,6 +1637,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -1651,6 +1656,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -1669,6 +1675,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
         ];
 
@@ -1713,6 +1720,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -1731,6 +1739,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
         ];
 
@@ -1774,6 +1783,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -1792,6 +1802,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -1810,6 +1821,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -1828,6 +1840,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -1846,6 +1859,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
         ];
 
@@ -2019,6 +2033,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -2037,6 +2052,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -2055,6 +2071,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
         ];
 

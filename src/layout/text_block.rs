@@ -52,6 +52,7 @@ pub struct TextSpan {
     pub primary_detected: bool,
     /// Artifact type classification for filtered content (PDF Spec Section 14.8.2.2)
     pub artifact_type: Option<ArtifactType>,
+    pub render_mode: u8,
 }
 
 impl Default for TextSpan {
@@ -73,6 +74,7 @@ impl Default for TextSpan {
             horizontal_scaling: 100.0,
             primary_detected: false,
             artifact_type: None,
+            render_mode: 0,
         }
     }
 }
@@ -108,6 +110,7 @@ impl TextSpan {
                 rotation_degrees: 0.0,
                 advance_width: char_width,
                 matrix: Some([1.0, 0.0, 0.0, 1.0, 0.0, 0.0]),
+                render_mode: 0,
             })
             .collect()
     }
@@ -196,6 +199,7 @@ pub struct TextChar {
     /// ```
     /// Where (a,d) = scaling, (b,c) = rotation/skew, (e,f) = translation.
     pub matrix: Option<[f32; 6]>,
+    pub render_mode: u8,
 }
 
 impl Default for TextChar {
@@ -214,6 +218,7 @@ impl Default for TextChar {
             rotation_degrees: 0.0,
             advance_width: 0.0,
             matrix: Some([1.0, 0.0, 0.0, 1.0, 0.0, 0.0]),
+            render_mode: 0,
         }
     }
 }
@@ -288,6 +293,7 @@ impl TextChar {
             rotation_degrees: 0.0,
             advance_width: bbox.width,
             matrix: None,
+            render_mode: 0,
         }
     }
 }
@@ -531,6 +537,7 @@ mod tests {
             rotation_degrees: 0.0,
             advance_width: bbox.width,
             matrix: None,
+            render_mode: 0,
         }
     }
 

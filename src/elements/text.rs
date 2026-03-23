@@ -163,6 +163,7 @@ impl From<TextContent> for TextSpan {
             horizontal_scaling: 100.0,
             primary_detected: false,
             artifact_type: content.artifact_type,
+            render_mode: 0,
         }
     }
 }
@@ -325,6 +326,7 @@ mod tests {
             word_spacing: 0.0,
             horizontal_scaling: 100.0,
             primary_detected: false,
+            render_mode: 0,
         };
 
         let content: TextContent = span.into();

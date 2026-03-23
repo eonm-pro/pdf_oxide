@@ -3595,6 +3595,7 @@ impl TextExtractor {
                                                 final_matrix.e,
                                                 final_matrix.f,
                                             ]),
+                                            render_mode: 0,
                                         };
                                         self.chars.push(space_char);
                                     }
@@ -4703,6 +4704,7 @@ impl TextExtractor {
             word_spacing: buffer.word_space, // Tw - captured from PDF content stream
             horizontal_scaling: buffer.horizontal_scaling, // Tz - captured from PDF content stream
             is_italic: is_italic_span,
+            render_mode: self.state_stack.current().render_mode,
             primary_detected: false,
             artifact_type: self.current_artifact_type(),
         };
@@ -5138,6 +5140,7 @@ impl TextExtractor {
             is_italic,
             primary_detected: true,
             artifact_type: None,
+            render_mode: 0,
         };
 
         // Step 6: Increment sequence counter and add to spans
@@ -5605,6 +5608,7 @@ impl TextExtractor {
             is_italic: is_italic_space,
             primary_detected: false,
             artifact_type: self.current_artifact_type(),
+            render_mode: 0,
         };
         self.span_sequence_counter += 1;
 
@@ -5684,6 +5688,7 @@ impl TextExtractor {
                     word_spacing: 0.0, // Tw - per ISO 32000-1:2008 Section 9.3.1
                     horizontal_scaling: 100.0, // Tz - per ISO 32000-1:2008 Section 9.3.1
                     is_italic: is_italic_buf,
+                    render_mode: self.state_stack.current().render_mode,
                     primary_detected: false,
                     artifact_type: None,
                 };
@@ -5850,6 +5855,7 @@ impl TextExtractor {
                             final_matrix.e + x_offset_user,
                             final_matrix.f,
                         ]),
+                        render_mode: 0,
                     };
 
                     self.chars.push(text_char);
@@ -7761,6 +7767,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
             TextChar {
                 char: 'A',
@@ -7776,6 +7783,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
         ];
 
@@ -7803,6 +7811,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
             TextChar {
                 char: 'A',
@@ -7818,6 +7827,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
         ];
 
@@ -7857,6 +7867,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
             TextSpan {
                 artifact_type: None,
@@ -7875,6 +7886,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             },
         ];
 
@@ -7922,6 +7934,7 @@ mod tests {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             });
         }
 
@@ -7952,6 +7965,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
             TextChar {
                 char: 'A',
@@ -7967,6 +7981,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
         ];
 
@@ -7995,6 +8010,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
             TextChar {
                 char: 'A',
@@ -8010,6 +8026,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
         ];
 
@@ -8037,6 +8054,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
             TextChar {
                 char: 'B',
@@ -8052,6 +8070,7 @@ mod tests {
                 rotation_degrees: 0.0,
                 advance_width: 6.0,
                 matrix: None,
+                render_mode: 0,
             },
         ];
 

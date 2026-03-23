@@ -3967,6 +3967,7 @@ impl PdfDocument {
                 word_spacing: 0.0,
                 horizontal_scaling: 100.0,
                 primary_detected: false,
+                render_mode: 0,
             });
         }
 
@@ -5999,6 +6000,7 @@ impl PdfDocument {
                 word_spacing: 0.0,
                 horizontal_scaling: 1.0,
                 primary_detected: false,
+                render_mode: 0,
             })
             .collect();
 
@@ -7027,6 +7029,7 @@ impl PdfDocument {
                 word_spacing: 0.0,
                 horizontal_scaling: 1.0,
                 primary_detected: false,
+                render_mode: 0,
             })
             .collect();
 
@@ -9722,6 +9725,7 @@ mod tests {
             word_spacing: 0.0,
             horizontal_scaling: 100.0,
             primary_detected: false,
+            render_mode: 0,
         }
     }
 
