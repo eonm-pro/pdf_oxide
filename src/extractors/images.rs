@@ -734,17 +734,34 @@ pub fn extract_image_from_xobject(
         .and_then(|obj| obj.as_integer())
         .ok_or_else(|| Error::Image("Image missing /Height".to_string()))? as u32;
 
-    // Extract bits per component (default: 8)
+    // Check for ImageMask (1-bit stencil mask — no ColorSpace entry per PDF spec §8.9.6.2)
+    let is_image_mask = dict
+        .get("ImageMask")
+        .and_then(|obj| obj.as_bool())
+        .unwrap_or(false);
+
+    // Extract bits per component.
+    // ImageMask images are always 1-bit; for others default to 8.
     let bits_per_component = dict
         .get("BitsPerComponent")
         .and_then(|obj| obj.as_integer())
-        .unwrap_or(8) as u8;
+        .unwrap_or(if is_image_mask { 1 } else { 8 }) as u8;
 
-    // Extract color space
-    let color_space_obj = dict
-        .get("ColorSpace")
-        .ok_or_else(|| Error::Image("Image missing /ColorSpace".to_string()))?;
-    let color_space = parse_color_space(color_space_obj)?;
+    // Extract color space.
+    // ImageMask images have no /ColorSpace entry — treat as 1-bit DeviceGray.
+    let color_space = if is_image_mask {
+        log::debug!(
+            "ImageMask=true detected ({}x{}): using DeviceGray/1-bpc, skipping /ColorSpace",
+            width,
+            height
+        );
+        ColorSpace::DeviceGray
+    } else {
+        let color_space_obj = dict
+            .get("ColorSpace")
+            .ok_or_else(|| Error::Image("Image missing /ColorSpace".to_string()))?;
+        parse_color_space(color_space_obj)?
+    };
 
     // Check if this is a JPEG image (DCTDecode filter)
     let filter_names = if let Some(filter_obj) = dict.get("Filter") {
