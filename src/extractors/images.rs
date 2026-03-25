@@ -813,92 +813,103 @@ pub fn extract_image_from_xobject(
         }
     }
 
-    // Extract image data
-    let data = if is_jpeg_only {
-        // DCTDecode is the sole filter - raw pass-through (stream data is already JPEG)
-        match xobject {
-            Object::Stream { data, .. } => ImageData::Jpeg(data.to_vec()),
-            _ => return Err(Error::Image("XObject is not a stream".to_string())),
-        }
-    } else if is_jpeg_chain {
-        // DCTDecode with other filters (e.g., [FlateDecode, DCTDecode]).
-        // The raw stream data still has preceding filters applied (e.g., deflate-compressed).
-        // Decode the full chain — DctDecoder is a pass-through, so the result is valid JPEG.
-        let decoded = if let (Some(doc), Some(ref_id)) = (doc, obj_ref) {
-            doc.decode_stream_with_encryption(xobject, ref_id)?
-        } else {
-            xobject.decode_stream_data()?
-        };
-        ImageData::Jpeg(decoded)
-    } else if ccitt_params_override.is_some() {
-        // Special handling: If we detected CCITT parameters override, extract the raw stream
-        // without applying the (incorrect) JBIG2Decode filter
-        match xobject {
-            Object::Stream { data, .. } => {
-                log::debug!("Using raw CCITT data (skipping incorrect JBIG2Decode filter)");
-                ImageData::Raw {
-                    pixels: data.to_vec(),
-                    format: PixelFormat::Grayscale,
-                }
-            },
-            _ => return Err(Error::Image("XObject is not a stream".to_string())),
-        }
-    } else {
-        // Decode stream data normally
-        let decoded_data = if let (Some(doc), Some(ref_id)) = (doc, obj_ref) {
-            doc.decode_stream_with_encryption(xobject, ref_id)?
-        } else {
-            xobject.decode_stream_data()?
-        };
-        let pixel_format = color_space_to_pixel_format(&color_space);
-        ImageData::Raw {
-            pixels: decoded_data,
-            format: pixel_format,
-        }
-    };
-
-    // Extract CCITT parameters if this is a 1-bit bilevel image
+    log::debug!("About to extract image data");
+    let data = ImageData::Jpeg(vec![]);
     let mut image = PdfImage::new(width, height, color_space, bits_per_component, data);
+    // Extract image data
+    // let data = if is_jpeg_only {
+    //     log::debug!("JPEG only");
+    //     // DCTDecode is the sole filter - raw pass-through (stream data is already JPEG)
+    //     match xobject {
+    //         Object::Stream { data, .. } => ImageData::Jpeg(data.to_vec()),
+    //         _ => return Err(Error::Image("XObject is not a stream".to_string())),
+    //     }
+    // } else if is_jpeg_chain {
+    //     log::debug!("JPEG chain");
+    //     // DCTDecode with other filters (e.g., [FlateDecode, DCTDecode]).
+    //     // The raw stream data still has preceding filters applied (e.g., deflate-compressed).
+    //     // Decode the full chain — DctDecoder is a pass-through, so the result is valid JPEG.
+    //     let decoded = if let (Some(doc), Some(ref_id)) = (doc, obj_ref) {
+    //         doc.decode_stream_with_encryption(xobject, ref_id)?
+    //     } else {
+    //         xobject.decode_stream_data()?
+    //     };
+    //     ImageData::Jpeg(decoded)
+    // } else if ccitt_params_override.is_some() {
+    //     log::debug!("CCITT chain");
+    //     // Special handling: If we detected CCITT parameters override, extract the raw stream
+    //     // without applying the (incorrect) JBIG2Decode filter
+    //     match xobject {
+    //         Object::Stream { data, .. } => {
+    //             log::debug!("Using raw CCITT data (skipping incorrect JBIG2Decode filter)");
+    //             ImageData::Raw {
+    //                 pixels: data.to_vec(),
+    //                 format: PixelFormat::Grayscale,
+    //             }
+    //         },
+    //         _ => return Err(Error::Image("XObject is not a stream".to_string())),
+    //     }
+    // } else {
+    //     log::debug!("ELSE");
+    //     // Decode stream data normally
+    //     let decoded_data = if let (Some(doc), Some(ref_id)) = (doc, obj_ref) {
+    //         log::debug!("xobject");
+    //         doc.decode_stream_with_encryption(xobject, ref_id)?
+    //     } else {
+    //         log::debug!("stream");
+    //         xobject.decode_stream_data()?
+    //     };
+    //     log::debug!("pixel format");
+    //     let pixel_format = color_space_to_pixel_format(&color_space);
+    //     ImageData::Raw {
+    //         pixels: decoded_data,
+    //         format: pixel_format,
+    //     }
+    // };
+    //
+    // log::debug!("Image data {:?}", data);
+    // Extract CCITT parameters if this is a 1-bit bilevel image
+    // let mut image = PdfImage::new(width, height, color_space, bits_per_component, data);
 
     // Use override parameters if we detected a mismatch
-    if let Some(ccitt_params) = ccitt_params_override {
-        log::debug!(
-            "Using CCITT override parameters: K={}, BlackIs1={}, EndOfLine={}, EncodedByteAlign={}, EndOfBlock={}",
-            ccitt_params.k,
-            ccitt_params.black_is_1,
-            ccitt_params.end_of_line,
-            ccitt_params.encoded_byte_align,
-            ccitt_params.end_of_block,
-        );
-        image.set_ccitt_params(ccitt_params);
-    } else if bits_per_component == 1 && image.color_space == ColorSpace::DeviceGray {
-        // Try to extract CCITT decompression parameters normally
-        if let Some(mut ccitt_params) =
-            crate::object::extract_ccitt_params_with_width(dict.get("DecodeParms"), Some(width))
-        {
-            // If rows is missing from /DecodeParms, use image height
-            if ccitt_params.rows.is_none() {
-                ccitt_params.rows = Some(height);
-                log::debug!(
-                    "Added image height {} to CCITT parameters (was missing from /DecodeParms)",
-                    height
-                );
-            }
-
-            log::debug!(
-                "Extracted CCITT parameters: K={}, BlackIs1={}, EndOfLine={}, EncodedByteAlign={}, EndOfBlock={}, columns={}, rows={:?}",
-                ccitt_params.k,
-                ccitt_params.black_is_1,
-                ccitt_params.end_of_line,
-                ccitt_params.encoded_byte_align,
-                ccitt_params.end_of_block,
-                ccitt_params.columns,
-                ccitt_params.rows,
-            );
-            image.set_ccitt_params(ccitt_params);
-        }
-    }
-
+    // if let Some(ccitt_params) = ccitt_params_override {
+    //     log::debug!(
+    //         "Using CCITT override parameters: K={}, BlackIs1={}, EndOfLine={}, EncodedByteAlign={}, EndOfBlock={}",
+    //         ccitt_params.k,
+    //         ccitt_params.black_is_1,
+    //         ccitt_params.end_of_line,
+    //         ccitt_params.encoded_byte_align,
+    //         ccitt_params.end_of_block,
+    //     );
+    //     image.set_ccitt_params(ccitt_params);
+    // } else if bits_per_component == 1 && image.color_space == ColorSpace::DeviceGray {
+    //     // Try to extract CCITT decompression parameters normally
+    //     if let Some(mut ccitt_params) =
+    //         crate::object::extract_ccitt_params_with_width(dict.get("DecodeParms"), Some(width))
+    //     {
+    //         // If rows is missing from /DecodeParms, use image height
+    //         if ccitt_params.rows.is_none() {
+    //             ccitt_params.rows = Some(height);
+    //             log::debug!(
+    //                 "Added image height {} to CCITT parameters (was missing from /DecodeParms)",
+    //                 height
+    //             );
+    //         }
+    //
+    //         log::debug!(
+    //             "Extracted CCITT parameters: K={}, BlackIs1={}, EndOfLine={}, EncodedByteAlign={}, EndOfBlock={}, columns={}, rows={:?}",
+    //             ccitt_params.k,
+    //             ccitt_params.black_is_1,
+    //             ccitt_params.end_of_line,
+    //             ccitt_params.encoded_byte_align,
+    //             ccitt_params.end_of_block,
+    //             ccitt_params.columns,
+    //             ccitt_params.rows,
+    //         );
+    //         image.set_ccitt_params(ccitt_params);
+    //     }
+    // }
+    //
     Ok(image)
 }
 
