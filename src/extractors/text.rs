@@ -5855,7 +5855,7 @@ impl TextExtractor {
                             final_matrix.e + x_offset_user,
                             final_matrix.f,
                         ]),
-                        render_mode: 0,
+                        render_mode: self.state_stack.current().render_mode,
                     };
 
                     self.chars.push(text_char);
